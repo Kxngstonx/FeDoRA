@@ -159,6 +159,7 @@ def main():
     if getattr(args, '_fedbabu_ignored_freeze_layers', None):
         logger.warning(f"FedBABU ignores --freeze_layers; ignoring {args._fedbabu_ignored_freeze_layers} and freezing only the classifier/head.")
 
+    # Client별 Non-IID Data 분할, DataLoader 생성
     (global_train_dataset, global_val_dataset, global_test_dataset,
      client_data_map, clients_at_rounds, client_datasets,
      global_train_dataloader, global_val_dataloader, global_test_dataloader,
@@ -289,8 +290,6 @@ def main():
             except Exception:
                 per_acc = 0.0
             personalized_accs.append(per_acc)
-            
-            # Extract weights to CPU
             
             # Extract weights to CPU
             updated_client_weights[cid] = {k: v.clone() for k, v in local_model.state_dict().items()}

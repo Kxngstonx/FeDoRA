@@ -16,6 +16,9 @@ from algs.fedrcl.RCLLoss import RCLloss
 from algs.fedsea.SEALoss import *
 
 
+# Train module for Local Client
+
+
 def compute_covariance_matrices(embeddings, labels):
     """
     embeddings: tensor of shape (N, D)
