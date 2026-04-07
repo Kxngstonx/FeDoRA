@@ -89,24 +89,25 @@ def get_args():
     return args
 
 
+# 특정 Layer의 Parameters를 freeze
 def apply_layer_freezing(net, args):
     if args.alg == 'fedavg':
         layers_to_freeze = []
-        if getattr(args, 'freeze_layers_list', None):
+        if getattr(args, 'freeze_layers_list', None): # Layer list
             layers_to_freeze = args.freeze_layers_list
-        elif args.freeze_layer > 0:
+        elif args.freeze_layer > 0: # One layer
             layers_to_freeze = [args.freeze_layer]
         if layers_to_freeze:
-            for L in layers_to_freeze:
+            for L in layers_to_freeze: # Layer는 여러 Residual Block으로 구성, 각 Block 안에는 여러 Conv Layer 존재
                 layer_name = f'layer{L}'
                 if hasattr(net, layer_name):
                     layer_module = getattr(net, layer_name)
                     mode = getattr(args, 'freeze_block_pos', 'first')
-                    if mode == 'first':
+                    if mode == 'first': # 각 Block의 conv1
                         for block in layer_module:
                             if hasattr(block, 'conv1'):
-                                for param in block.conv1.parameters():
-                                    param.requires_grad = False
+                                for param in block.conv1.parameters(): 
+                                    param.requires_grad = False # Freeze
                     elif mode == 'last':
                         for block in layer_module:
                             if hasattr(block, 'conv3'):
@@ -121,7 +122,7 @@ def apply_layer_freezing(net, args):
                                 for param in block.conv1.parameters():
                                     param.requires_grad = False
 
-    if args.alg in ('fedavg', 'fedbabu') and args.freeze_classifier:
+    if args.alg in ('fedavg', 'fedbabu') and args.freeze_classifier: # BABU: Body-As-Base, Un-trained head = Classifier는 Freeze, Feature Extractor(Body)만 학습
         try:
             classifier_name = list(net.named_children())[-1][0]
         except Exception:
@@ -237,7 +238,7 @@ def main():
             # Restore local m for decoupled DoRA
             if args.peft == 'dora' and args.decoupled_dora:
                 if cid in client_m_storage:
-                    local_model.load_state_dict(client_m_storage[cid], strict=False)
+                    local_model.load_state_dict(client_m_storage[cid], strict=False) # Client의 magnitude parameter 집계에서 제외
                     
             # --- DoRA Cosine Re-calibration Logic ---
             if getattr(args, 'use_cosine_recal', False) and cid in client_v_storage:
@@ -253,14 +254,14 @@ def main():
                         BA_old = (B_old @ A_old) * module.scaling
                         V_old_flat = (W0 + BA_old).flatten()
                         
-                        # Cosine Sim
+                        # Cosine Sim [-1,1]
                         cos_sim = torch.nn.functional.cosine_similarity(V_old_flat, V_new_flat, dim=0)
                         
                         # Apply Gamma and Tau
-                        adjusted_cos = torch.max(torch.tensor(args.dora_cos_gamma, device=device), cos_sim)
+                        adjusted_cos = torch.max(torch.tensor(args.dora_cos_gamma, device=device), cos_sim) # gamma = Penalty의 Lower bound, cos_sim이 음수일 때 penalty가 0이 되는 것을 방지
                         if adjusted_cos < 0:
                             adjusted_cos = torch.tensor(args.dora_cos_gamma, device=device)
-                        penalty = torch.pow(adjusted_cos, args.dora_cos_tau)
+                        penalty = torch.pow(adjusted_cos, args.dora_cos_tau) # tau = Penalty의 degree
                         
                         # Scale m down safely
                         with torch.no_grad():
@@ -340,7 +341,7 @@ def main():
             if idx == 0:
                 for key in net_para:
                     skip = False
-                    for L in agg_layers_to_freeze:
+                    for L in agg_layers_to_freeze: # Freeze Layer는 Aggregation skip
                         if key.startswith(f'layer{L}.'):
                             if freeze_mode == 'first' and '.conv1.' in key: skip = True
                             elif freeze_mode == 'last' and ('.conv3.' in key or '.conv2.' in key): skip = True

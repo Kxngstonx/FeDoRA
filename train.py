@@ -8,7 +8,7 @@ import time
 import copy
 import os
 
-from algs.feddecorr.decorr import FedDecorrLoss
+from algs.feddecorr.decorr import FedDecoDorrrLoss
 from algs.fedproc.NegLoss import NegLoss_new
 from algs.fedproc.PosLoss import PosLoss_new
 from algs.fedsw.SWLoss import SampleWiseLoss

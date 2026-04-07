@@ -452,11 +452,11 @@ def prepare_data_for_training(args, logger):
         global_train_dataset, global_val_dataset, global_test_dataset, args)
     client_dataloaders = get_client_dataloaders(client_datasets, args)
 
-    # per-client test dataloaders (subset of global test set by client's classes)
+    # per-client test dataloaders (subset of global test set by client's classes = For Personalization)
     client_test_dataloaders = get_client_test_dataloaders(
         client_data_map, global_train_dataset, global_test_dataset, args)
 
-    # finetune train dataloaders (do not drop last so small clients are included)
+    # finetune train dataloaders (do not drop last(smaller than batch_size) = clients having small dataset are included)
     client_finetune_train = {i: torch.utils.data.DataLoader(
         dataset=client_datasets[i], batch_size=args.batch_size, drop_last=False, shuffle=True, pin_memory=True, num_workers=args.num_workers) for i in range(args.n_clients)}
 
@@ -627,6 +627,7 @@ def compute_accuracy(model, dataloader, device):
     return correct / float(total)
 
 
+# Average Accuracy over last n rounds
 def avg_last_n(accuracy_list, n):
     if not accuracy_list:
         return None

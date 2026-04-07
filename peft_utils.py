@@ -6,9 +6,9 @@ import math
 class LoRALayer(nn.Module):
     def __init__(self, in_features, out_features, r, lora_alpha, lora_dropout=0.0):
         super().__init__()
-        self.r = r
+        self.r = r # rank
         self.lora_alpha = lora_alpha
-        self.scaling = self.lora_alpha / self.r
+        self.scaling = self.lora_alpha / self.r # rank가 작아지면 BA Output의 scale이 작아지는 문제 보정
         if lora_dropout > 0.0:
             self.lora_dropout = nn.Dropout(p=lora_dropout)
         else:
@@ -19,19 +19,20 @@ class LoRALinear(LoRALayer):
         super().__init__(linear_layer.in_features, linear_layer.out_features, r, lora_alpha, lora_dropout)
         
         self.linear = linear_layer
-        self.linear.weight.requires_grad = False
+        self.linear.weight.requires_grad = False # Freeze W0
         if self.linear.bias is not None:
-            self.linear.bias.requires_grad = False
+            self.linear.bias.requires_grad = False # Freeze bias
             
-        self.lora_A = nn.Parameter(self.linear.weight.new_zeros((r, linear_layer.in_features)), requires_grad=False)
+        self.lora_A = nn.Parameter(self.linear.weight.new_zeros((r, linear_layer.in_features)), requires_grad=False) # Freeze A in FL
         self.lora_B = nn.Parameter(self.linear.weight.new_zeros((linear_layer.out_features, r)))
+        # Initial stat BA = 0
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
         nn.init.zeros_(self.lora_B)
 
     def forward(self, x: torch.Tensor):
-        result = self.linear(x)
+        result = self.linear(x) # W0 * x
         x_dropped = self.lora_dropout(x)
-        result += (x_dropped @ self.lora_A.T @ self.lora_B.T) * self.scaling
+        result += (x_dropped @ self.lora_A.T @ self.lora_B.T) * self.scaling # BA * x → W0x + BAx
         return result
 
 class DoRALinear(LoRALayer):
@@ -48,7 +49,7 @@ class DoRALinear(LoRALayer):
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
         nn.init.zeros_(self.lora_B)
         
-        self.m = nn.Parameter(self.linear.weight.norm(p=2, dim=1, keepdim=True))
+        self.m = nn.Parameter(self.linear.weight.norm(p=2, dim=1, keepdim=True)) # Initialize: m = ||W0||_2
 
     def forward(self, x: torch.Tensor):
         W0 = self.linear.weight
@@ -70,7 +71,7 @@ class LoRAConv2d(LoRALayer):
         if self.conv.bias is not None:
             self.conv.bias.requires_grad = False
             
-        self.lora_A = nn.Parameter(self.conv.weight.new_zeros((r, conv_layer.in_channels // conv_layer.groups, conv_layer.kernel_size[0], conv_layer.kernel_size[1])), requires_grad=False)
+        self.lora_A = nn.Parameter(self.conv.weight.new_zeros((r, conv_layer.in_channels // conv_layer.groups, conv_layer.kernel_size[0], conv_layer.kernel_size[1])), requires_grad=False) # input channel 당 독립 filter를 활용
         self.lora_B = nn.Parameter(self.conv.weight.new_zeros((conv_layer.out_channels, r, 1, 1)))
         
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
