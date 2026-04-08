@@ -56,7 +56,7 @@ class DoRALinear(LoRALayer):
         BA = (self.lora_B @ self.lora_A) * self.scaling
         V = W0 + BA
         
-        V_norm = V.norm(p=2, dim=1, keepdim=True) + 1e-8
+        V_norm = V.norm(p=2, dim=1, keepdim=True).detach() + 1e-8  # DoRA trick: stop gradient through norm
         W_new = self.m * (V / V_norm)
         
         x_dropped = self.lora_dropout(x)
@@ -110,7 +110,7 @@ class DoRAConv2d(LoRALayer):
         BA = BA.view(C_out, C_in_g, k1, k2)
         
         V = W0 + BA
-        V_norm = V.view(C_out, -1).norm(p=2, dim=1).view(C_out, 1, 1, 1) + 1e-8
+        V_norm = V.view(C_out, -1).norm(p=2, dim=1).view(C_out, 1, 1, 1).detach() + 1e-8  # DoRA trick: stop gradient through norm
         
         W_new = self.m * (V / V_norm)
         
