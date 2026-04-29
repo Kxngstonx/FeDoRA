@@ -83,6 +83,7 @@ def get_args():
     parser.add_argument('--dora_warmup_ratio', type=float, default=0.0, help='Ratio of local steps to freeze A, B and only train m')
     parser.add_argument('--dora_warmup_lr_mult', type=float, default=1.0, help='LR multiplier for m during warmup')
     parser.add_argument('--use_cosine_recal', action='store_true', help='Enable Cosine Similarity Re-calibration')
+    parser.add_argument('--flex_lora', action='store_true', help='FlexLoRA: train lora_A on clients, use SVD-based server aggregation.')
 
 
     args = parser.parse_args()
@@ -171,13 +172,13 @@ def main():
 
     # Initialize SINGLE global model and ONE local model to save GPU memory
     base_global_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0))
+    base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=getattr(args, 'flex_lora', False))
 
     global_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    global_model = inject_peft(global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0))
+    global_model = inject_peft(global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=getattr(args, 'flex_lora', False))
 
     local_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    local_model = inject_peft(local_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0))
+    local_model = inject_peft(local_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=getattr(args, 'flex_lora', False))
 
     base_w = base_global_model.state_dict()
     global_model.load_state_dict(base_w, strict=False)
@@ -235,8 +236,8 @@ def main():
             
             local_model.load_state_dict(global_w, strict=False)
             
-            # Restore local m for decoupled DoRA
-            if args.peft == 'dora' and args.decoupled_dora:
+            # Restore local m for decoupled DoRA (flex_lora 활성 시 서버 값을 그대로 사용하므로 복원 안 함)
+            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_lora', False):
                 if cid in client_m_storage:
                     local_model.load_state_dict(client_m_storage[cid], strict=False) # Client의 magnitude parameter 집계에서 제외
                     
@@ -296,7 +297,7 @@ def main():
             updated_client_weights[cid] = {k: v.clone() for k, v in local_model.state_dict().items()}
             
             # Save local m for decoupled DoRA
-            if args.peft == 'dora' and args.decoupled_dora:
+            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_lora', False):
                 client_m_storage[cid] = {k: v.clone() for k, v in local_model.state_dict().items() if k.endswith('.m')}
                 
             # Save V_local for Cosine Re-calibration next round
@@ -347,6 +348,8 @@ def main():
                             elif freeze_mode == 'last' and ('.conv3.' in key or '.conv2.' in key): skip = True
                     if classifier_prefix and key.startswith(classifier_prefix): skip = True
                     if args.decoupled_dora and key.endswith('.m'): skip = True
+                    # FlexLoRA: DoRA 파라미터는 flex_lora_aggregate가 별도 처리
+                    if getattr(args, 'flex_lora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
                     if not skip: global_w[key] = net_para[key] * weight
             else:
                 for key in net_para:
@@ -357,9 +360,31 @@ def main():
                             elif freeze_mode == 'last' and ('.conv3.' in key or '.conv2.' in key): skip = True
                     if classifier_prefix and key.startswith(classifier_prefix): skip = True
                     if args.decoupled_dora and key.endswith('.m'): skip = True
+                    # FlexLoRA: DoRA 파라미터는 flex_lora_aggregate가 별도 처리
+                    if getattr(args, 'flex_lora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
                     if not skip: global_w[key] += net_para[key] * weight
 
         global_model.load_state_dict(global_w, strict=False)
+
+        # FlexLoRA 집계: W_k 재구성 → FedAvg → SVD 분해로 m_new, B_new, A_new 초기화
+        if getattr(args, 'flex_lora', False) and args.peft == 'dora':
+            from peft_utils import flex_lora_aggregate
+            updated_dora_params, lambda_logs = flex_lora_aggregate(
+                updated_client_weights, fed_avg_freqs, global_model)
+            global_model.load_state_dict(updated_dora_params, strict=False)
+            global_w.update(updated_dora_params)
+
+            round_lambda_logs = {}
+            for lname, lvals in lambda_logs.items():
+                logger.info(
+                    f'ROUND {round} FlexLoRA [{lname}] '
+                    f'lambda_diff={lvals["lambda_diff"]:.6f}, '
+                    f'lambda_relative={lvals["lambda_relative"]:.6f} | '
+                    f'w_diff={lvals["w_diff"]:.6f}, '
+                    f'w_relative={lvals["w_relative"]:.6f}, '
+                    f'trunc_err={lvals["trunc_err"]:.6f}')
+                round_lambda_logs[lname] = lvals
+            pkl_dict.setdefault('flex_lora_lambda', []).append(round_lambda_logs)
 
         if args.peft == 'dora':
             from utils import DoRASimilarityCalculator
