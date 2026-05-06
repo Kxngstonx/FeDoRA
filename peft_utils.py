@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-import time
 
 class LoRALayer(nn.Module):
     def __init__(self, in_features, out_features, r, lora_alpha, lora_dropout=0.0):
@@ -56,10 +55,10 @@ class DoRALinear(LoRALayer):
         W0 = self.linear.weight
         BA = (self.lora_B @ self.lora_A) * self.scaling
         V = W0 + BA
-        
+
         V_norm = V.norm(p=2, dim=1, keepdim=True).detach() + 1e-8  # DoRA trick: stop gradient through norm
         W_new = self.m * (V / V_norm)
-        
+
         x_dropped = self.lora_dropout(x)
         return F.linear(x_dropped, W_new, self.linear.bias)
 
@@ -156,8 +155,11 @@ def flex_lora_decompose_linear(W_global, W0, r, scaling):
 
     # Step 1: M_0 = W_global - W0, SVD로 rank-r 근사
     # 코드에서 BA_eff = B @ A * scaling 이므로 scaling 으로 나눈 뒤 SVD
+    # bfloat16은 CUDA SVD 미지원이므로 float32로 캐스팅 후 복원
+    orig_dtype = W_global.dtype
     M_0 = W_global - W0                                           # (out, in)
-    U, S, Vh = torch.linalg.svd(M_0 / scaling, full_matrices=False)
+    U, S, Vh = torch.linalg.svd((M_0 / scaling).float(), full_matrices=False)
+    U, S, Vh = U.to(orig_dtype), S.to(orig_dtype), Vh.to(orig_dtype)
     actual_r = min(r, S.shape[0])
     B_new = U[:, :actual_r] * S[:actual_r].unsqueeze(0)          # (out, r)
     A_new = Vh[:actual_r, :]                                      # (r, in)
@@ -190,8 +192,10 @@ def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
     lambda_0_2d = W_g2d.norm(p=2, dim=1, keepdim=True)           # (C_out, 1)
     lambda_0 = lambda_0_2d.view(C_out, 1, 1, 1)                  # (C_out, 1, 1, 1)
 
+    orig_dtype = W_global.dtype
     M_0 = W_g2d - W0_2d
-    U, S, Vh = torch.linalg.svd(M_0 / scaling, full_matrices=False)
+    U, S, Vh = torch.linalg.svd((M_0 / scaling).float(), full_matrices=False)
+    U, S, Vh = U.to(orig_dtype), S.to(orig_dtype), Vh.to(orig_dtype)
     actual_r = min(r, S.shape[0])
     B_new = U[:, :actual_r] * S[:actual_r].unsqueeze(0)          # (C_out, r)
     A_new = Vh[:actual_r, :]                                      # (r, flat_dim)
@@ -271,9 +275,27 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model):
 
         # 방법 1 vs 방법 2 비교 통계
         W_diff = W_global - W_simple
-        w_flex_norm = W_global.norm().item()   # w_relative 계산용 (딕셔너리 저장 안 함)
+        w_flex_norm = W_global.norm().item()
         w_diff = W_diff.norm().item()
         w_relative = w_diff / (w_flex_norm + 1e-8)
+
+        # score layer : out_features < r인 경우 SVD로 rank-r 분해 불가 → FedAvg fallback
+        max_svd_rank = min(W0.shape[0], W0.view(W0.shape[0], -1).shape[1])
+        if max_svd_rank < r:
+            updated_dora_params[f"{layer_name}.m"] = m_avg
+            updated_dora_params[f"{layer_name}.lora_B"] = B_avg
+            updated_dora_params[f"{layer_name}.lora_A"] = A_avg
+            lambda_logs[layer_name] = {
+                'lambda_0':        m_avg.detach().cpu(),
+                'lambda_1':        m_avg.detach().cpu(),
+                'singular_values': torch.zeros(1),
+                'lambda_diff':     0.0,
+                'lambda_relative': 0.0,
+                'w_diff':          w_diff,
+                'w_relative':      w_relative,
+                'trunc_err':       float('inf'),
+            }
+            continue
 
         if is_conv:
             m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
@@ -341,8 +363,8 @@ def calculate_dora_correlation(initial_components, current_components):
             cos_sim = F.cosine_similarity(V0, Vt, dim=1)
             delta_v = 1.0 - cos_sim
             
-            delta_m_list.append(delta_m.cpu().numpy())
-            delta_v_list.append(delta_v.cpu().numpy())
+            delta_m_list.append(delta_m.cpu().float().numpy())
+            delta_v_list.append(delta_v.cpu().float().numpy())
             
     if len(delta_m_list) == 0:
         return 0.0

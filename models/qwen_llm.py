@@ -11,6 +11,10 @@ class QwenLLMWrapper(nn.Module):
         config.pad_token_id = config.eos_token_id # Qwen usually uses eos as pad
         # Use Sequence Classification model which adds a classification head
         self.qwen = AutoModelForSequenceClassification.from_pretrained(model_name, config=config, ignore_mismatched_sizes=True)
+        # from_pretrained with ignore_mismatched_sizes=True can leave score weight
+        # uninitialized (NaN) in bfloat16 on GPU; re-initialize explicitly.
+        with torch.no_grad():
+            nn.init.normal_(self.qwen.score.weight, mean=0.0, std=config.initializer_range)
         # Ensure gradients are computable on frozen layers if peft adds adapters
         if hasattr(self.qwen, 'enable_input_require_grads'):
             self.qwen.enable_input_require_grads()
@@ -22,7 +26,7 @@ class QwenLLMWrapper(nn.Module):
             outputs = self.qwen(x, output_hidden_states=True)
             
         logits = outputs.logits
-        # Return features as the last hidden state of the cls token or mean
-        hidden_states = outputs.hidden_states[-1]
-        pooled = hidden_states.mean(dim=1)
+        # Apply final RMSNorm for consistency with logits (SequenceClassifierOutputWithPast
+        # carries pre-norm hidden_states; logits use post-norm last_hidden_state internally)
+        pooled = self.qwen.model.norm(outputs.hidden_states[-1]).mean(dim=1)
         return pooled, logits

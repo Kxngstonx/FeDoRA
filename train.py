@@ -8,7 +8,7 @@ import time
 import copy
 import os
 
-from algs.feddecorr.decorr import FedDecoDorrrLoss
+from algs.feddecorr.decorr import FedDecorrLoss
 from algs.fedproc.NegLoss import NegLoss_new
 from algs.fedproc.PosLoss import PosLoss_new
 from algs.fedsw.SWLoss import SampleWiseLoss
@@ -39,12 +39,10 @@ def compute_covariance_matrices(embeddings, labels):
         cls_mask = labels == cls
         cls_emb = embeddings[cls_mask]  # (n_c, D)
         cls_mean = cls_emb.mean(dim=0, keepdim=True)  # (1, D)
-        # Within-class scatter: �??�플�??�래???�균 �?차이???�적????
         S_W += (cls_emb - cls_mean).T @ (cls_emb - cls_mean)
 
         n_cls = cls_emb.shape[0]
         diff = cls_mean - overall_mean  # (1, D)
-        # Between-class scatter: ?�래???�균�??�체 ?�균 �?차이???�적 * ?�래???�플 ??
         S_B += n_cls * (diff.T @ diff)
 
     return S_W, S_B
@@ -59,19 +57,20 @@ def fedavg(net, train_dataloader, optimizer, device, args):
     all_features = []
     all_labels = []
     total_batches = 0
+    _dbg_printed = False
     net.train()
 
     for epoch in range(args.epochs):
         for step, (x, target) in enumerate(train_dataloader):
             total_batches += 1
-            
+
             # --- DoRA Magnitude Warmup Logic ---
             args._is_warmup_step = False
             if getattr(args, 'peft', 'none') == 'dora' and getattr(args, 'dora_warmup_ratio', 0.0) > 0.0:
                 total_expected_steps = len(train_dataloader) * args.epochs
                 warmup_steps = int(total_expected_steps * args.dora_warmup_ratio)
                 current_global_step = epoch * len(train_dataloader) + step
-                
+
                 if current_global_step < warmup_steps:
                     args._is_warmup_step = True
                     # Freeze A and B, Unfreeze m
@@ -86,7 +85,7 @@ def fedavg(net, train_dataloader, optimizer, device, args):
                         if 'lora_B' in name or name.endswith('.m'):
                             param.requires_grad = True
             # -----------------------------------
-            
+
             if isinstance(x, dict):
                 x = {k: v.to(device) for k, v in x.items()}
                 target = target.to(device)
@@ -96,14 +95,19 @@ def fedavg(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            loss = criterion(out, target)
+            if not _dbg_printed:
+                print(f"[DBG] out  nan={torch.isnan(out).any().item()} inf={torch.isinf(out).any().item()} min={out.float().min().item():.4f} max={out.float().max().item():.4f}", flush=True)
+                print(f"[DBG] feat nan={torch.isnan(features).any().item()} inf={torch.isinf(features).any().item()}", flush=True)
+            loss = criterion(out.float(), target)
+            if not _dbg_printed:
+                print(f"[DBG] loss={loss.item()}", flush=True)
+                _dbg_printed = True
             total_loss += loss.item()
 
             if args.feddecorr:
                 loss_feddecorr = feddecorr(features)
                 loss = loss + args.feddecorr_coef * loss_feddecorr
 
-            
             loss.backward()
             
             # Boost gradient for m during warmup
@@ -184,7 +188,7 @@ def feddecorr(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            loss = criterion(out, target)
+            loss = criterion(out.float(), target)
             total_loss += loss.item()
 
             if args.feddecorr:
@@ -246,7 +250,7 @@ def fedprox(net, global_model, train_dataloader, optimizer, device, args):
             optimizer.zero_grad()
             target = target.long()
             features, out = net(x)
-            loss = criterion(out, target)
+            loss = criterion(out.float(), target)
 
             if args.feddecorr:
                 loss_feddecorr = feddecorr(features)
@@ -320,7 +324,7 @@ def moon(net, global_model, previous_net, train_dataloader, optimizer, device, a
             logits /= args.temperature
             labels = torch.zeros(x.size(0)).long().to(device)
             loss2 = args.mu * criterion(logits, labels)
-            loss1 = criterion(out, target)
+            loss1 = criterion(out.float(), target)
             loss = loss1 + loss2
             total_loss += loss.item()
 
@@ -377,7 +381,7 @@ def fedproc(net, train_dataloader, optimizer, device, args, round, global_class_
             optimizer.zero_grad()
             target = target.long()
             features, out = net(x)
-            CEloss = criterion(out, target)
+            CEloss = criterion(out.float(), target)
 
             if round < 1:
                 loss = CEloss
@@ -455,7 +459,7 @@ def fedsw(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            CEloss = criterion(out, target)
+            CEloss = criterion(out.float(), target)
 
             features_norm = F.normalize(features, p=2, dim=1)
             cosine_sim_matrix = torch.mm(features_norm, features_norm.t())
@@ -519,7 +523,7 @@ def fedrcl(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            CEloss = criterion(out, target)
+            CEloss = criterion(out.float(), target)
 
             features_norm = F.normalize(features, p=2, dim=1)
             cosine_sim_matrix = torch.mm(features_norm, features_norm.t())
@@ -583,7 +587,7 @@ def decfedproc(net, train_dataloader, optimizer, device, args, round, global_cla
             optimizer.zero_grad()
             target = target.long()
             features, out = net(x)
-            CEloss = criterion(out, target)
+            CEloss = criterion(out.float(), target)
 
             if round < 1:
                 loss = CEloss
@@ -659,7 +663,7 @@ def decfedsw(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            CEloss = criterion(out, target)
+            CEloss = criterion(out.float(), target)
 
             features_norm = F.normalize(features, p=2, dim=1)
             cosine_sim_matrix = torch.mm(features_norm, features_norm.t())

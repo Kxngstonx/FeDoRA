@@ -13,3 +13,6 @@ htmlcov/
 .DS_Store
 .vscode/
 .idea/
+logs/
+*.csv
+activate
