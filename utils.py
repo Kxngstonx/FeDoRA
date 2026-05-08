@@ -91,6 +91,14 @@ def get_hf_model_name(model_arg):
 def get_global_dataset(args):
     model_name = get_hf_model_name(getattr(args, 'model', 'roberta-base'))
     
+    if args.dataset.startswith('glue_'):
+        from datasets.glue import GLUEDataset
+        task = args.dataset[len('glue_'):]
+        train_ds = GLUEDataset(task=task, train=True,  model_name=model_name, max_length=128)
+        val_ds   = None
+        test_ds  = GLUEDataset(task=task, train=False, model_name=model_name, max_length=128)
+        return train_ds, val_ds, test_ds
+
     if args.dataset == 'ag_news':
         train_ds = AGNewsDataset(
             train=True, model_name=model_name, max_length=128)
@@ -582,7 +590,10 @@ def init_nets(dataset, num_nets, args, device='cpu', base=False, use_projection_
                     in_channels=args.in_channels, num_classes=num_classes, use_projection_head=False)
         elif args.model == 'qwen':
             net = QwenLLMWrapper(num_classes=num_classes)
-        elif args.model in ['roberta-base', 'roberta-large', 'distilbert', 'llama-3.2-1b']:
+        elif args.model == 'roberta-large':
+            from models.roberta_large import RoBERTaLargeWrapper
+            net = RoBERTaLargeWrapper(num_classes=num_classes)
+        elif args.model in ['roberta-base', 'distilbert', 'llama-3.2-1b']:
             from models.hf_model import HFModelWrapper
             hf_model_name = get_hf_model_name(args.model)
             net = HFModelWrapper(num_classes=num_classes, model_name=hf_model_name)
@@ -638,7 +649,8 @@ def avg_last_n(accuracy_list, n):
 def get_global_class_center(global_class_center_old, n_party, nets, args, device, train_dataloader):
     DATA_nclass = {'mnist': 10, 'cifar10': 10, 'svhn': 10,
                    'fmnist': 10, 'cifar100': 100, 'tinyimagenet': 200,
-                   'ag_news': 4, 'banking77': 77, '20newsgroups': 20}
+                   'ag_news': 4, 'banking77': 77, '20newsgroups': 20,
+                   'glue_sst2': 2, 'glue_mnli': 3, 'glue_qnli': 2, 'glue_qqp': 2}
     clsnum = DATA_nclass[args.dataset]
     n_party = int(n_party*args.sample_fraction)
     class_count = torch.zeros((n_party, clsnum), device=device)

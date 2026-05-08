@@ -15,15 +15,15 @@ class LoRALayer(nn.Module):
             self.lora_dropout = nn.Identity()
 
 class LoRALinear(LoRALayer):
-    def __init__(self, linear_layer: nn.Linear, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0):
+    def __init__(self, linear_layer: nn.Linear, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0, trainable_A: bool = False):
         super().__init__(linear_layer.in_features, linear_layer.out_features, r, lora_alpha, lora_dropout)
-        
+
         self.linear = linear_layer
         self.linear.weight.requires_grad = False # Freeze W0
         if self.linear.bias is not None:
             self.linear.bias.requires_grad = False # Freeze bias
-            
-        self.lora_A = nn.Parameter(self.linear.weight.new_zeros((r, linear_layer.in_features)), requires_grad=False) # Freeze A in FL
+
+        self.lora_A = nn.Parameter(self.linear.weight.new_zeros((r, linear_layer.in_features)), requires_grad=trainable_A)
         self.lora_B = nn.Parameter(self.linear.weight.new_zeros((linear_layer.out_features, r)))
         # Initial stat BA = 0
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
@@ -63,15 +63,15 @@ class DoRALinear(LoRALayer):
         return F.linear(x_dropped, W_new, self.linear.bias)
 
 class LoRAConv2d(LoRALayer):
-    def __init__(self, conv_layer: nn.Conv2d, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0):
+    def __init__(self, conv_layer: nn.Conv2d, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0, trainable_A: bool = False):
         super().__init__(conv_layer.in_channels, conv_layer.out_channels, r, lora_alpha, lora_dropout)
-        
+
         self.conv = conv_layer
         self.conv.weight.requires_grad = False
         if self.conv.bias is not None:
             self.conv.bias.requires_grad = False
-            
-        self.lora_A = nn.Parameter(self.conv.weight.new_zeros((r, conv_layer.in_channels // conv_layer.groups, conv_layer.kernel_size[0], conv_layer.kernel_size[1])), requires_grad=False) # input channel 당 독립 filter를 활용
+
+        self.lora_A = nn.Parameter(self.conv.weight.new_zeros((r, conv_layer.in_channels // conv_layer.groups, conv_layer.kernel_size[0], conv_layer.kernel_size[1])), requires_grad=trainable_A)
         self.lora_B = nn.Parameter(self.conv.weight.new_zeros((conv_layer.out_channels, r, 1, 1)))
         
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
@@ -117,22 +117,31 @@ class DoRAConv2d(LoRALayer):
         x_dropped = self.lora_dropout(x)
         return F.conv2d(x_dropped, W_new, self.conv.bias, stride=self.conv.stride, padding=self.conv.padding, dilation=self.conv.dilation, groups=self.conv.groups)
 
-def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False):
+def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None):
     if peft_type == "none":
         return model
 
+    if skip_modules is None:
+        skip_modules = []
+
     for name, module in model.named_children():
+        if name in skip_modules:
+            # Full Fine-Tuning: LoRA/DoRA 교체 없이 모든 파라미터를 trainable로 유지
+            for param in module.parameters():
+                param.requires_grad = True
+            continue
+
         if len(list(module.children())) > 0:
             inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A)
 
         if isinstance(module, nn.Linear):
             if peft_type == "lora":
-                setattr(model, name, LoRALinear(module, r, lora_alpha, lora_dropout))
+                setattr(model, name, LoRALinear(module, r, lora_alpha, lora_dropout, trainable_A))
             elif peft_type == "dora":
                 setattr(model, name, DoRALinear(module, r, lora_alpha, lora_dropout, trainable_A))
         elif isinstance(module, nn.Conv2d):
             if peft_type == "lora":
-                setattr(model, name, LoRAConv2d(module, r, lora_alpha, lora_dropout))
+                setattr(model, name, LoRAConv2d(module, r, lora_alpha, lora_dropout, trainable_A))
             elif peft_type == "dora":
                 setattr(model, name, DoRAConv2d(module, r, lora_alpha, lora_dropout, trainable_A))
     return model
@@ -208,12 +217,48 @@ def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
     return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, S
 
 
-def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model):
+def flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
+    """
+    A0 고정 시 Least Squares로 B_new만 계산. SVD 없이 O(r²) 역산.
+    min_B ||（W_global - W0）/s - B @ A0||_F²  →  B_new = M @ A0† = solve(A0A0ᵀ, A0 @ Mᵀ)ᵀ
+    """
+    lambda_0 = W_global.norm(p=2, dim=1, keepdim=True)          # (out, 1)
+    orig_dtype = W_global.dtype
+    M_f = ((W_global - W0) / scaling).float()                    # (out, in)
+    A0_f = A0.float()                                            # (r, in)
+    AAt = A0_f @ A0_f.T                                          # (r, r)
+    B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)  # (out, r)
+    V_new = W0 + (B_new @ A0) * scaling
+    lambda_1 = V_new.norm(p=2, dim=1, keepdim=True)
+    return lambda_0, B_new, lambda_0, lambda_1
+
+
+def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
+    """
+    Conv2d 버전: 4D → 2D flatten 후 동일 Least Squares 적용.
+    """
+    C_out = W_global.shape[0]
+    W_g2d = W_global.view(C_out, -1)
+    W0_2d = W0.view(C_out, -1)
+    lambda_0_2d = W_g2d.norm(p=2, dim=1, keepdim=True)
+    lambda_0 = lambda_0_2d.view(C_out, 1, 1, 1)
+    orig_dtype = W_global.dtype
+    M_f = ((W_g2d - W0_2d) / scaling).float()
+    A0_f = A0.float()
+    AAt = A0_f @ A0_f.T
+    B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)
+    V_new = W0_2d + (B_new @ A0) * scaling
+    lambda_1 = V_new.norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
+    return lambda_0, B_new, lambda_0, lambda_1
+
+
+def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False):
     """
     FlexLoRA 서버 집계:
       1) 각 클라이언트의 (m_k, B_k, A_k)로 W_k = m_k * (V_k / ||V_k||_row) 재구성
       2) W_global = FedAvg(W_k)
-      3) SVD 분해 → m_new, B_new, A_new
+      3a) freeze_a=False: SVD 분해 → m_new, B_new, A_new
+      3b) freeze_a=True:  Least Squares → m_new, B_new (A_new = A₀ 고정)
 
     Returns:
       updated_dora_params: {"{layer_name}.m": tensor, ...}  ← global_model에 load할 파라미터
@@ -297,7 +342,16 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model):
             }
             continue
 
-        if is_conv:
+        if freeze_a:
+            A0 = module.lora_A.data
+            if is_conv:
+                m_new, B_new, l0, l1 = flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling)
+            else:
+                m_new, B_new, l0, l1 = flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling)
+            A_new = A0
+            trunc_err = 0.0
+            sv = torch.zeros(1)
+        elif is_conv:
             m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
         else:
             m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
@@ -371,12 +425,50 @@ def calculate_dora_correlation(initial_components, current_components):
         
     delta_m_all = np.concatenate(delta_m_list)
     delta_v_all = np.concatenate(delta_v_list)
-    
+
     # Pearson correlation
     if len(delta_m_all) > 1 and np.std(delta_m_all) > 0 and np.std(delta_v_all) > 0:
         corr = np.corrcoef(delta_m_all, delta_v_all)[0, 1]
     else:
         corr = 0.0
-        
+
     return corr
+
+
+def calculate_client_dora_correlation(before_components, after_components):
+    import numpy as np
+    delta_m_list = []
+    delta_v_norm_list = []
+
+    for name in before_components.keys():
+        if name not in after_components:
+            continue
+        m_before = before_components[name]['m'].view(-1)
+        m_after  = after_components[name]['m'].view(-1)
+
+        V_before = before_components[name]['V']
+        V_after  = after_components[name]['V']
+
+        C_out = V_before.shape[0]
+        V_before_flat = V_before.view(C_out, -1)
+        V_after_flat  = V_after.view(C_out, -1)
+
+        delta_m = (m_after - m_before).cpu().float().numpy()
+        delta_v = (V_after_flat.norm(p=2, dim=1) - V_before_flat.norm(p=2, dim=1)).cpu().float().numpy()
+
+        delta_m_list.append(delta_m)
+        delta_v_norm_list.append(delta_v)
+
+    if not delta_m_list:
+        return 0.0
+
+    delta_m_all = np.concatenate(delta_m_list)
+    delta_v_all = np.concatenate(delta_v_norm_list)
+
+    if len(delta_m_all) > 1 and np.std(delta_m_all) > 0 and np.std(delta_v_all) > 0:
+        corr = np.corrcoef(delta_m_all, delta_v_all)[0, 1]
+    else:
+        corr = 0.0
+
+    return float(corr)
 
