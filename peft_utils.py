@@ -117,22 +117,23 @@ class DoRAConv2d(LoRALayer):
         x_dropped = self.lora_dropout(x)
         return F.conv2d(x_dropped, W_new, self.conv.bias, stride=self.conv.stride, padding=self.conv.padding, dilation=self.conv.dilation, groups=self.conv.groups)
 
-def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None):
+def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None, global_skip_modules=None):
     if peft_type == "none":
         return model
 
     if skip_modules is None:
         skip_modules = []
+    if global_skip_modules is None:
+        global_skip_modules = []
 
     for name, module in model.named_children():
-        if name in skip_modules:
-            # Full Fine-Tuning: LoRA/DoRA 교체 없이 모든 파라미터를 trainable로 유지
+        if name in skip_modules or name in global_skip_modules:
             for param in module.parameters():
                 param.requires_grad = True
             continue
 
         if len(list(module.children())) > 0:
-            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A)
+            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules)
 
         if isinstance(module, nn.Linear):
             if peft_type == "lora":
@@ -174,13 +175,15 @@ def flex_lora_decompose_linear(W_global, W0, r, scaling):
     A_new = Vh[:actual_r, :]                                      # (r, in)
 
     # Truncation error: discarded singular values의 Frobenius norm × scaling (원래 행렬 스케일)
+    S_total_norm = S.norm().item()
     trunc_err = (S[actual_r:].norm() * scaling).item() if actual_r < S.shape[0] else 0.0
+    trunc_err_relative = (S[actual_r:].norm() / (S_total_norm + 1e-8)).item() if actual_r < S.shape[0] else 0.0
 
     # Step 2: Lambda_1 = ||(W0 + B_new @ A_new * scaling)||_row
     V_new = W0 + (B_new @ A_new) * scaling
     lambda_1 = V_new.norm(p=2, dim=1, keepdim=True)              # (out, 1)
 
-    return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, S
+    return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, trunc_err_relative, S
 
 
 def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
@@ -209,12 +212,14 @@ def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
     B_new = U[:, :actual_r] * S[:actual_r].unsqueeze(0)          # (C_out, r)
     A_new = Vh[:actual_r, :]                                      # (r, flat_dim)
 
+    S_total_norm = S.norm().item()
     trunc_err = (S[actual_r:].norm() * scaling).item() if actual_r < S.shape[0] else 0.0
+    trunc_err_relative = (S[actual_r:].norm() / (S_total_norm + 1e-8)).item() if actual_r < S.shape[0] else 0.0
 
     V_new = W0_2d + (B_new @ A_new) * scaling
     lambda_1 = V_new.norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
 
-    return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, S
+    return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, trunc_err_relative, S
 
 
 def flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
@@ -228,9 +233,12 @@ def flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
     A0_f = A0.float()                                            # (r, in)
     AAt = A0_f @ A0_f.T                                          # (r, r)
     B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)  # (out, r)
+    residual_norm = (M_f - B_new.float() @ A0_f).norm().item()
+    ls_err = residual_norm * scaling
+    ls_err_relative = residual_norm / (M_f.norm().item() + 1e-8)
     V_new = W0 + (B_new @ A0) * scaling
     lambda_1 = V_new.norm(p=2, dim=1, keepdim=True)
-    return lambda_0, B_new, lambda_0, lambda_1
+    return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
 
 def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
@@ -247,9 +255,12 @@ def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
     A0_f = A0.float()
     AAt = A0_f @ A0_f.T
     B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)
+    residual_norm = (M_f - B_new.float() @ A0_f).norm().item()
+    ls_err = residual_norm * scaling
+    ls_err_relative = residual_norm / (M_f.norm().item() + 1e-8)
     V_new = W0_2d + (B_new @ A0) * scaling
     lambda_1 = V_new.norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
-    return lambda_0, B_new, lambda_0, lambda_1
+    return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
 
 def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False):
@@ -331,30 +342,36 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
             updated_dora_params[f"{layer_name}.lora_B"] = B_avg
             updated_dora_params[f"{layer_name}.lora_A"] = A_avg
             lambda_logs[layer_name] = {
-                'lambda_0':        m_avg.detach().cpu(),
-                'lambda_1':        m_avg.detach().cpu(),
-                'singular_values': torch.zeros(1),
-                'lambda_diff':     0.0,
-                'lambda_relative': 0.0,
-                'w_diff':          w_diff,
-                'w_relative':      w_relative,
-                'trunc_err':       float('inf'),
+                'lambda_0':             m_avg.detach().cpu(),
+                'lambda_1':             m_avg.detach().cpu(),
+                'singular_values':      torch.zeros(1),
+                'lambda_diff':          0.0,
+                'lambda_relative':      0.0,
+                'w_diff':               w_diff,
+                'w_relative':           w_relative,
+                'trunc_err':            float('inf'),
+                'trunc_err_relative':   float('inf'),
+                'ls_err':               float('inf'),
+                'ls_err_relative':      float('inf'),
             }
             continue
 
         if freeze_a:
             A0 = module.lora_A.data
             if is_conv:
-                m_new, B_new, l0, l1 = flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling)
             else:
-                m_new, B_new, l0, l1 = flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling)
             A_new = A0
-            trunc_err = 0.0
+            trunc_err = ls_err
+            trunc_err_relative = 0.0
             sv = torch.zeros(1)
         elif is_conv:
-            m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
+            m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
+            ls_err, ls_err_relative = 0.0, 0.0
         else:
-            m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
+            m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
+            ls_err, ls_err_relative = 0.0, 0.0
 
         lambda_diff = (l1 - l0).norm().item()
         lambda_relative = lambda_diff / (l0.norm().item() + 1e-8)
@@ -363,14 +380,17 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
         updated_dora_params[f"{layer_name}.lora_B"] = B_new
         updated_dora_params[f"{layer_name}.lora_A"] = A_new
         lambda_logs[layer_name] = {
-            'lambda_0':        l0.detach().cpu(),
-            'lambda_1':        l1.detach().cpu(),
-            'singular_values': sv.detach().cpu(),
-            'lambda_diff':     lambda_diff,
-            'lambda_relative': lambda_relative,
-            'w_diff':          w_diff,
-            'w_relative':      w_relative,
-            'trunc_err':       trunc_err,
+            'lambda_0':             l0.detach().cpu(),
+            'lambda_1':             l1.detach().cpu(),
+            'singular_values':      sv.detach().cpu(),
+            'lambda_diff':          lambda_diff,
+            'lambda_relative':      lambda_relative,
+            'w_diff':               w_diff,
+            'w_relative':           w_relative,
+            'trunc_err':            trunc_err,
+            'trunc_err_relative':   trunc_err_relative,
+            'ls_err':               ls_err,
+            'ls_err_relative':      ls_err_relative,
         }
 
     return updated_dora_params, lambda_logs
@@ -393,82 +413,52 @@ def get_dora_components(model):
             components[name] = {'m': module.m.clone().detach(), 'V': V.clone().detach()}
     return components
 
-def calculate_dora_correlation(initial_components, current_components):
+def get_dora_delta_scalars(initial_components, current_components):
+    """Returns (dm_per_layer, dv_per_layer) arrays, one scalar per layer per DoRA paper eq (3)(4)."""
     import numpy as np
-    delta_m_list = []
-    delta_v_list = []
-    
+    dm_list = []
+    dv_list = []
+
     for name in initial_components.keys():
         if name in current_components:
             m0 = initial_components[name]['m'].view(-1)
             mt = current_components[name]['m'].view(-1)
-            
-            V0 = initial_components[name]['V']
-            Vt = current_components[name]['V']
-            
-            C_out = V0.shape[0]
-            V0 = V0.view(C_out, -1)
-            Vt = Vt.view(C_out, -1)
-            
-            # Change in magnitude
-            delta_m = (mt - m0).abs()
-            
-            # Change in direction: 1 - cosine_similarity
+            C_out = initial_components[name]['V'].shape[0]
+            V0 = initial_components[name]['V'].view(C_out, -1)
+            Vt = current_components[name]['V'].view(C_out, -1)
+            dm_list.append(float(np.mean((mt - m0).abs().cpu().float().numpy())))
             cos_sim = F.cosine_similarity(V0, Vt, dim=1)
-            delta_v = 1.0 - cos_sim
-            
-            delta_m_list.append(delta_m.cpu().float().numpy())
-            delta_v_list.append(delta_v.cpu().float().numpy())
-            
-    if len(delta_m_list) == 0:
-        return 0.0
-        
-    delta_m_all = np.concatenate(delta_m_list)
-    delta_v_all = np.concatenate(delta_v_list)
+            dv_list.append(float(np.mean((1.0 - cos_sim).cpu().float().numpy())))
 
-    # Pearson correlation
-    if len(delta_m_all) > 1 and np.std(delta_m_all) > 0 and np.std(delta_v_all) > 0:
-        corr = np.corrcoef(delta_m_all, delta_v_all)[0, 1]
-    else:
-        corr = 0.0
-
-    return corr
+    return np.array(dm_list), np.array(dv_list)
 
 
-def calculate_client_dora_correlation(before_components, after_components):
+def get_client_dora_delta_scalars(before_components, after_components):
+    """Returns (dm_per_layer, dv_per_layer) arrays, one scalar per layer per DoRA paper eq (3)(4)."""
     import numpy as np
-    delta_m_list = []
-    delta_v_norm_list = []
+    dm_list = []
+    dv_list = []
 
     for name in before_components.keys():
         if name not in after_components:
             continue
         m_before = before_components[name]['m'].view(-1)
         m_after  = after_components[name]['m'].view(-1)
+        C_out = before_components[name]['V'].shape[0]
+        V_before_flat = before_components[name]['V'].view(C_out, -1)
+        V_after_flat  = after_components[name]['V'].view(C_out, -1)
+        dm_list.append(float(np.mean((m_after - m_before).abs().cpu().float().numpy())))
+        cos_sim = F.cosine_similarity(V_before_flat.float(), V_after_flat.float(), dim=1).clamp(-1.0, 1.0)
+        dv_list.append(float(np.mean((1.0 - cos_sim).cpu().numpy())))
 
-        V_before = before_components[name]['V']
-        V_after  = after_components[name]['V']
+    return np.array(dm_list), np.array(dv_list)
 
-        C_out = V_before.shape[0]
-        V_before_flat = V_before.view(C_out, -1)
-        V_after_flat  = V_after.view(C_out, -1)
 
-        delta_m = (m_after - m_before).cpu().float().numpy()
-        delta_v = (V_after_flat.norm(p=2, dim=1) - V_before_flat.norm(p=2, dim=1)).cpu().float().numpy()
-
-        delta_m_list.append(delta_m)
-        delta_v_norm_list.append(delta_v)
-
-    if not delta_m_list:
+def compute_temporal_dora_correlation(delta_m_series, delta_v_series):
+    """Pearson correlation between ΔM and ΔD time series (paper's temporal method)."""
+    import numpy as np
+    dm, dv = np.array(delta_m_series), np.array(delta_v_series)
+    if len(dm) < 2 or np.std(dm) == 0 or np.std(dv) == 0:
         return 0.0
-
-    delta_m_all = np.concatenate(delta_m_list)
-    delta_v_all = np.concatenate(delta_v_norm_list)
-
-    if len(delta_m_all) > 1 and np.std(delta_m_all) > 0 and np.std(delta_v_all) > 0:
-        corr = np.corrcoef(delta_m_all, delta_v_all)[0, 1]
-    else:
-        corr = 0.0
-
-    return float(corr)
+    return float(np.corrcoef(dm, dv)[0, 1])
 

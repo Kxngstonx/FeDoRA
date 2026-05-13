@@ -4,9 +4,10 @@ import torch.optim as optim
 import argparse
 import copy
 import time
-import pickle
 import os
 import gc
+import json
+import pickle
 
 from utils import *
 from utils import prepare_data_for_training
@@ -47,7 +48,7 @@ def get_args():
     parser.add_argument('--n_clients', type=int, default=100, help='number of workers in a distributed cluster')
     parser.add_argument('--beta', type=float, default=0.5, help='The parameter for the dirichlet distribution')
     parser.add_argument('--unavailability', default='stationary')
-    parser.add_argument('--min_require_size', type=int, default=64)
+    parser.add_argument('--min_require_size', type=int, default=1)
     parser.add_argument('--sample_fraction', type=float, default=0.1)
     parser.add_argument('--time', type=int, default=0)
 
@@ -175,19 +176,17 @@ def main():
 
     # Initialize SINGLE global model and ONE local model to save GPU memory
     base_global_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    _ft_classifier_skip = []
+    _ft_classifier_global_skip = []
     if args.peft != 'none' and getattr(args, 'ft_classifier', False):
-        try:
-            _ft_classifier_skip = [list(base_global_model.named_children())[-1][0]]
-        except Exception:
-            pass
-    base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), skip_modules=_ft_classifier_skip)
+        if 'roberta' in args.model:
+            _ft_classifier_global_skip = ['classifier']
+        elif 'qwen' in args.model:
+            _ft_classifier_global_skip = ['score']
+    _peft_kwargs = dict(trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), global_skip_modules=_ft_classifier_global_skip)
+    base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), **_peft_kwargs)
 
-    global_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    global_model = inject_peft(global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), skip_modules=_ft_classifier_skip)
-
-    local_model = init_nets(global_train_dataset, 1, args, device, base=True, use_projection_head=args.use_projection_head)[0]
-    local_model = inject_peft(local_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), skip_modules=_ft_classifier_skip)
+    global_model = copy.deepcopy(base_global_model)
+    local_model  = copy.deepcopy(base_global_model)
 
     base_w = base_global_model.state_dict()
     global_model.load_state_dict(base_w, strict=False)
@@ -207,11 +206,15 @@ def main():
     if args.alg == 'fedsea':
         client_discriminator, optimizer_discriminator, optimizer_attention, attention_p, feature_dim = init_fedsea(global_model, global_test_dataloader, client_iid_generators, args)
 
-    pkl_dict = {'args': vars(args), 'avg_train_loss': [], 'acc': [], 'dora_corr': []}
+    pkl_dict = {'args': vars(args), 'avg_train_loss': [], 'acc': []}
     lr = args.lr
 
-    from peft_utils import get_dora_components, calculate_dora_correlation, calculate_client_dora_correlation
+    from peft_utils import (get_dora_components, get_dora_delta_scalars,
+                            get_client_dora_delta_scalars, compute_temporal_dora_correlation)
     initial_dora_components = get_dora_components(global_model) if args.peft == 'dora' else None
+    dora_server_dm_accum = []
+    dora_server_dv_accum = []
+    checkpoint_interval = max(1, args.round // 5)
 
     
     client_m_storage = {} # Store specific m per client
@@ -298,8 +301,9 @@ def main():
 
             if args.peft == 'dora':
                 after_dora_components = get_dora_components(local_model)
-                client_corr = calculate_client_dora_correlation(before_dora_components, after_dora_components)
-                logger.info(f'ROUND {round} CLIENT {cid} DoRA Δm-Δ||V|| Pearson Corr: {client_corr:.4f}')
+                dm_layers, dv_layers = get_client_dora_delta_scalars(before_dora_components, after_dora_components)
+                client_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
+                logger.info(f'ROUND {round} CLIENT {cid} DoRA Corr (layer-wise): {client_corr:.4f}')
                 pkl_dict.setdefault('client_dora_corr', []).append({'round': round, 'cid': cid, 'corr': client_corr})
 
             round_loss += loss
@@ -395,14 +399,23 @@ def main():
             global_w.update(updated_dora_params)
 
             round_sv_logs = {}
+            is_freeze_a = getattr(args, 'flex_lora_freeze_a', False)
+            err_label = 'ls_err' if is_freeze_a else 'trunc_err'
             for lname, lvals in lambda_logs.items():
+                err_str = (
+                    f'ls_err={lvals["ls_err"]:.6f}, '
+                    f'ls_err_relative={lvals["ls_err_relative"]:.6f}'
+                    if is_freeze_a else
+                    f'trunc_err={lvals["trunc_err"]:.6f}, '
+                    f'trunc_err_relative={lvals["trunc_err_relative"]:.6f}'
+                )
                 logger.info(
                     f'ROUND {round} FlexLoRA [{lname}] '
                     f'lambda_diff={lvals["lambda_diff"]:.6f}, '
                     f'lambda_relative={lvals["lambda_relative"]:.6f} | '
                     f'w_diff={lvals["w_diff"]:.6f}, '
                     f'w_relative={lvals["w_relative"]:.6f}, '
-                    f'trunc_err={lvals["trunc_err"]:.6f}')
+                    f'{err_str}')
                 round_sv_logs[lname] = lvals['singular_values']
             pkl_dict.setdefault('flex_lora_sv', []).append(round_sv_logs)
 
@@ -411,9 +424,13 @@ def main():
             sim_calc = DoRASimilarityCalculator(temperature=1.0)
             
             server_dora = get_dora_components(global_model)
-            corr = calculate_dora_correlation(initial_dora_components, server_dora)
-            pkl_dict['dora_corr'].append(corr)
-            logger.info(f'ROUND {round} DoRA \u0394m-\u0394V Pearson Correlation: {corr:.4f}')
+            dm_layers, dv_layers = get_dora_delta_scalars(initial_dora_components, server_dora)
+            round_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
+            logger.info(f'ROUND {round} DoRA Server Corr (layer-wise): {round_corr:.4f}')
+            is_checkpoint = (round + 1) % checkpoint_interval == 0 or round == args.round - 1
+            if is_checkpoint:
+                dora_server_dm_accum.append(dm_layers)
+                dora_server_dv_accum.append(dv_layers)
             
             # Calculate metrics for each client vs server
             l2_m_list, l2_v_list = [], []
@@ -463,16 +480,18 @@ def main():
         pkl_dict['acc'].append(test_acc)
         logger.info(f'>> Global Model Test accuracy: {test_acc:.4f}')
 
-    # Save global model
-    save_dir = './trained_models'
-    os.makedirs(save_dir, exist_ok=True)
-    freeze_info = ','.join(map(str, args.freeze_layers_list)) if getattr(args, 'freeze_layers_list', None) else str(args.freeze_layer)
-    filename = f"{args.alg}_{args.seed}_{args.dataset}_{args.peft}_frac{args.sample_fraction}.pth"
-    save_path = os.path.join(save_dir, filename)
-    torch.save(global_model.state_dict(), save_path)
-    
+    if args.peft == 'dora' and len(dora_server_dm_accum) >= 2:
+        import numpy as np
+        dm_all = np.concatenate(dora_server_dm_accum)
+        dv_all = np.concatenate(dora_server_dv_accum)
+        final_corr = compute_temporal_dora_correlation(dm_all, dv_all)
+        pkl_dict['dora_final_corr'] = final_corr
+        logger.info(f'DoRA Server Final Correlation (layer×checkpoint): {final_corr:.4f}')
+
     with open(os.path.join(args.logdir, log_file_name + '.pkl'), 'wb') as f:
         pickle.dump(pkl_dict, f)
+
+
 
 if __name__ == '__main__':
     main()

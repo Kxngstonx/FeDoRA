@@ -1,31 +1,33 @@
 import torch
 from torch.utils.data import Dataset
-import sys
 import os
 import csv
 import urllib.request
 from transformers import AutoTokenizer
 
+_CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'ag_news')
+
 class AGNewsDataset(Dataset):
     def __init__(self, train=True, model_name="Qwen/Qwen2.5-0.5B", max_length=128):
         self.max_length = max_length
         self.num_classes = 4
-        
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-            
+
+        os.makedirs(_CACHE_DIR, exist_ok=True)
         if train:
             url = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/train.csv"
-            filename = "ag_news_train.csv"
+            filename = os.path.join(_CACHE_DIR, 'train.csv')
         else:
             url = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/test.csv"
-            filename = "ag_news_test.csv"
-            
+            filename = os.path.join(_CACHE_DIR, 'test.csv')
+
         if not os.path.exists(filename):
             print(f"Downloading {filename}...")
             urllib.request.urlretrieve(url, filename)
-            
+
         self.data = []
         with open(filename, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)

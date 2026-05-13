@@ -5,7 +5,7 @@ import queue
 import threading
 import argparse
 
-BETAS = [0.5, 0.3]
+BETAS = [0.3]
 GLUE_TASKS = ['sst2', 'mnli', 'qnli', 'qqp']
 
 FL_BASE = (
@@ -14,13 +14,14 @@ FL_BASE = (
     "--seed 42 "
     "--optimizer adam --lr 1e-4 --scheduler cosine "
     "--partition noniid "
-    "--lora_r 8 --lora_alpha 16"
+    "--lora_r 8 --lora_alpha 16 "
+    "--ft_classifier"
 )
 
 METHODS = {
-    'LoRA':           '--peft lora',
-    'LoRA_TrainableA':'--peft lora --trainable_A',
-    'FlexLoRA':       '--peft dora --flex_lora',
+    'LoRA_TrainableA':  '--peft lora --trainable_A',
+    'FlexLoRA':         '--peft dora --flex_lora',
+    'FlexLoRA_FreezeA': '--peft dora --flex_lora --flex_lora_freeze_a',
 }
 
 
@@ -31,22 +32,17 @@ def run_command(command, gpu_id, task_name, log_dir):
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     env["PYTHONUNBUFFERED"] = "1"
 
-    log_file_path = os.path.join(log_dir, f"{task_name.lower()}_gpu{gpu_id}.log")
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, task_name + '.log')
 
-    with open(log_file_path, "w") as f:
+    with open(log_path, 'a') as log_f:
         process = subprocess.Popen(
             command,
             shell=True,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
+            stdout=log_f,
+            stderr=log_f,
         )
-        for line in process.stdout:
-            f.write(line)
-            f.flush()
         process.wait()
 
     print(f"\n[{time.strftime('%H:%M:%S')}] Finished {task_name} on GPU {gpu_id}.")
@@ -68,42 +64,48 @@ def worker(gpu_id, task_queue, dry_run):
 def build_tasks():
     tasks = []
 
-    # --- Group 1: RoBERTa-Large + AG News ---
-    for beta in BETAS:
-        log_dir = f'./logs/roberta_agnews/beta_{beta}/'
-        base = f'python3 main.py --model roberta-large --dataset ag_news {FL_BASE} --beta {beta} --logdir {log_dir}'
-        for method_name, method_flags in METHODS.items():
-            tag = f'RoBERTa_AGNews_Beta{beta}_{method_name}'
-            cmd = f'{base} {method_flags} --log_file_name {tag}'
-            tasks.append((tag, cmd, log_dir))
-
-    # --- Group 2: RoBERTa-Large + GLUE (per task) ---
     for task in GLUE_TASKS:
         for beta in BETAS:
-            log_dir = f'./logs/roberta_glue/{task}/beta_{beta}/'
+            log_dir = f'./logs/roberta_glue/{task}/'
             base = f'python3 main.py --model roberta-large --dataset glue_{task} {FL_BASE} --beta {beta} --logdir {log_dir}'
             for method_name, method_flags in METHODS.items():
                 tag = f'RoBERTa_{task.upper()}_Beta{beta}_{method_name}'
                 cmd = f'{base} {method_flags} --log_file_name {tag}'
                 tasks.append((tag, cmd, log_dir))
 
-    # --- Group 3: Qwen + GLUE (per task) ---
-    for task in GLUE_TASKS:
-        for beta in BETAS:
-            log_dir = f'./logs/qwen_glue/{task}/beta_{beta}/'
-            base = f'python3 main.py --model qwen --dataset glue_{task} {FL_BASE} --beta {beta} --logdir {log_dir}'
-            for method_name, method_flags in METHODS.items():
-                tag = f'Qwen_{task.upper()}_Beta{beta}_{method_name}'
-                cmd = f'{base} {method_flags} --log_file_name {tag}'
-                tasks.append((tag, cmd, log_dir))
-
     return tasks
+
+
+def get_free_gpu_ids(threshold_mib=40000):
+    result = subprocess.run(
+        ['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,noheader,nounits'],
+        capture_output=True, text=True
+    )
+    free = []
+    for line in result.stdout.strip().split('\n'):
+        idx, mem = line.split(', ')
+        if int(mem) >= threshold_mib:
+            free.append(int(idx))
+    return free
+
+
+def gpu_monitor(task_queue, active_gpus, threads, dry_run, poll_interval=60):
+    while not task_queue.empty():
+        for gpu_id in get_free_gpu_ids():
+            if gpu_id not in active_gpus and not task_queue.empty():
+                print(f"[{time.strftime('%H:%M:%S')}] GPU {gpu_id} is now free — spawning worker.")
+                active_gpus.add(gpu_id)
+                t = threading.Thread(target=worker, args=(gpu_id, task_queue, dry_run))
+                t.start()
+                threads.append(t)
+        time.sleep(poll_interval)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true', help='Print commands without executing')
-    parser.add_argument('--gpus', type=int, nargs='+', default=[0, 1], help='GPU IDs to use')
+    parser.add_argument('--gpus', type=int, nargs='+', default=None, help='GPU IDs to use (default: auto-detect free GPUs)')
+    parser.add_argument('--mem-threshold', type=int, default=40000, help='Free memory threshold in MiB to consider a GPU available')
     args = parser.parse_args()
 
     tasks = build_tasks()
@@ -112,13 +114,31 @@ def main():
     for t in tasks:
         task_queue.put(t)
 
-    print(f"[{time.strftime('%H:%M:%S')}] {len(tasks)} tasks across {len(args.gpus)} GPU(s): {args.gpus}\n")
+    if args.gpus is not None:
+        initial_gpus = args.gpus
+    else:
+        initial_gpus = get_free_gpu_ids(args.mem_threshold)
+        if not initial_gpus:
+            print(f"[{time.strftime('%H:%M:%S')}] No free GPUs found (threshold: {args.mem_threshold} MiB). Waiting...")
+            while not initial_gpus:
+                time.sleep(30)
+                initial_gpus = get_free_gpu_ids(args.mem_threshold)
 
+    print(f"[{time.strftime('%H:%M:%S')}] {len(tasks)} tasks, starting on GPU(s): {initial_gpus}\n")
+
+    active_gpus = set(initial_gpus)
     threads = []
-    for gpu_id in args.gpus:
+    for gpu_id in initial_gpus:
         t = threading.Thread(target=worker, args=(gpu_id, task_queue, args.dry_run))
         t.start()
         threads.append(t)
+
+    monitor = threading.Thread(
+        target=gpu_monitor,
+        args=(task_queue, active_gpus, threads, args.dry_run),
+        daemon=True
+    )
+    monitor.start()
 
     for t in threads:
         t.join()

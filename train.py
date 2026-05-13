@@ -57,7 +57,6 @@ def fedavg(net, train_dataloader, optimizer, device, args):
     all_features = []
     all_labels = []
     total_batches = 0
-    _dbg_printed = False
     net.train()
 
     for epoch in range(args.epochs):
@@ -95,13 +94,7 @@ def fedavg(net, train_dataloader, optimizer, device, args):
             target = target.long()
 
             features, out = net(x)
-            if not _dbg_printed:
-                print(f"[DBG] out  nan={torch.isnan(out).any().item()} inf={torch.isinf(out).any().item()} min={out.float().min().item():.4f} max={out.float().max().item():.4f}", flush=True)
-                print(f"[DBG] feat nan={torch.isnan(features).any().item()} inf={torch.isinf(features).any().item()}", flush=True)
             loss = criterion(out.float(), target)
-            if not _dbg_printed:
-                print(f"[DBG] loss={loss.item()}", flush=True)
-                _dbg_printed = True
             total_loss += loss.item()
 
             if args.feddecorr:

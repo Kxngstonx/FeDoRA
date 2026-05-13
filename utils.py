@@ -266,19 +266,14 @@ def partition_data(global_train_dataset, args, logger):
         net_dataidx_map = {i: batch_idxs[i] for i in range(args.n_clients)}
 
     elif args.partition == "noniid":
-        min_size = 0
         N = n_train
+        min_size = 0
         while min_size < args.min_require_size:
             idx_batch = [[] for _ in range(args.n_clients)]
             for k in range(K):
                 idx_k = np.where(y_train == k)[0]
                 np.random.shuffle(idx_k)
-                props = np.random.dirichlet(
-                    np.repeat(args.beta, args.n_clients))
-                props = np.array([
-                    p * (len(idx_j) < N / args.n_clients)
-                    for p, idx_j in zip(props, idx_batch)
-                ])
+                props = np.random.dirichlet(np.repeat(args.beta, args.n_clients))
                 props = props / props.sum()
                 splits = (np.cumsum(props) * len(idx_k)).astype(int)[:-1]
                 idx_batch = [
