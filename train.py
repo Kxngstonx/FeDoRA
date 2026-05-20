@@ -59,9 +59,15 @@ def fedavg(net, train_dataloader, optimizer, device, args):
     total_batches = 0
     net.train()
 
+    max_steps = getattr(args, 'local_steps', 0)
+    total_steps = 0
+
     for epoch in range(args.epochs):
         for step, (x, target) in enumerate(train_dataloader):
+            if max_steps > 0 and total_steps >= max_steps:
+                break
             total_batches += 1
+            total_steps += 1
 
             # --- DoRA Magnitude Warmup Logic ---
             args._is_warmup_step = False
@@ -102,7 +108,7 @@ def fedavg(net, train_dataloader, optimizer, device, args):
                 loss = loss + args.feddecorr_coef * loss_feddecorr
 
             loss.backward()
-            
+
             # Boost gradient for m during warmup
             if getattr(args, 'peft', 'none') == 'dora' and getattr(args, 'dora_warmup_ratio', 0.0) > 0.0:
                 if getattr(args, '_is_warmup_step', False):
@@ -111,12 +117,13 @@ def fedavg(net, train_dataloader, optimizer, device, args):
                         for name, param in net.named_parameters():
                             if name.endswith('.m') and param.grad is not None:
                                 param.grad *= multiplier
-                                
-            optimizer.step()
 
+            optimizer.step()
 
             all_features.append(features.detach())
             all_labels.append(target.detach())
+        if max_steps > 0 and total_steps >= max_steps:
+            break
 
     if total_batches > 0 and len(all_features) > 0:
         all_features = torch.cat(all_features, dim=0)  # shape: (N_total, D)

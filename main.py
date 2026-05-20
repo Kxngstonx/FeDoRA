@@ -40,6 +40,7 @@ def get_args():
     parser.add_argument('--lr_gamma', type=float, default=0.1)
     parser.add_argument('--eta_min', type=float, default=0.0, help='minimum learning rate')
     parser.add_argument('--epochs', type=int, default=1, help='number of local epochs')
+    parser.add_argument('--local_steps', type=int, default=0, help='local gradient update steps per round (0 = epoch-based)')
     parser.add_argument('--reg', type=float, default=1e-3, help="L2 regularization strength")
 
     parser.add_argument('--partition', default='noniid', help='iid, noniid, noniid_balanced')

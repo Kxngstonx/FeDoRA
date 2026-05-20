@@ -5,16 +5,17 @@ import queue
 import threading
 import argparse
 
-BETAS = [0.3]
+BETAS = [0.5]
 GLUE_TASKS = ['sst2', 'mnli', 'qnli', 'qqp']
 
 FL_BASE = (
-    "--round 50 --epochs 1 "
-    "--n_clients 100 --sample_fraction 0.1 "
+    "--round 30 --epochs 1 "
+    "--n_clients 3 --sample_fraction 1.0 "
     "--seed 42 "
-    "--optimizer adam --lr 1e-4 --scheduler cosine "
+    "--optimizer sgd --lr 1e-4 --scheduler cosine "
     "--partition noniid "
-    "--lora_r 8 --lora_alpha 16 "
+    "--lora_r 8 --lora_alpha 8 "
+    "--local_steps 50 "
     "--ft_classifier"
 )
 
