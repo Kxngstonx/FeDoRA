@@ -172,7 +172,7 @@ def flex_lora_decompose_linear(W_global, W0, r, scaling):
     U, S, Vh = U.to(orig_dtype), S.to(orig_dtype), Vh.to(orig_dtype)
     actual_r = min(r, S.shape[0])
     B_new = U[:, :actual_r] * S[:actual_r].unsqueeze(0)          # (out, r)
-    A_new = Vh[:actual_r, :]                                      # (r, in)
+    A_new = Vh[:actual_r, :].clone()                             # (r, in)
 
     # Truncation error: discarded singular values의 Frobenius norm × scaling (원래 행렬 스케일)
     S_total_norm = S.norm().item()
@@ -210,7 +210,7 @@ def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
     U, S, Vh = U.to(orig_dtype), S.to(orig_dtype), Vh.to(orig_dtype)
     actual_r = min(r, S.shape[0])
     B_new = U[:, :actual_r] * S[:actual_r].unsqueeze(0)          # (C_out, r)
-    A_new = Vh[:actual_r, :]                                      # (r, flat_dim)
+    A_new = Vh[:actual_r, :].clone()                             # (r, flat_dim)
 
     S_total_norm = S.norm().item()
     trunc_err = (S[actual_r:].norm() * scaling).item() if actual_r < S.shape[0] else 0.0
@@ -263,13 +263,61 @@ def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
     return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
 
-def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False):
+def flex_lora_decompose_linear_svd_a(W_global, W0, A_ref, scaling):
+    """
+    A_ref가 SVD로 추출된 공통 방향일 때 Least Squares로 B_new만 계산.
+    """
+    lambda_0 = W_global.norm(p=2, dim=1, keepdim=True)          # (out, 1)
+    orig_dtype = W_global.dtype
+    M_f = ((W_global - W0) / scaling).float()                    # (out, in)
+    A0_f = A_ref.float()                                            # (r, in)
+    AAt = A0_f @ A0_f.T                                          # (r, r)
+    B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)  # (out, r)
+    V_new = W0 + (B_new @ A_ref) * scaling
+    lambda_1 = V_new.norm(p=2, dim=1, keepdim=True)
+    
+    B_f = B_new.float()
+    M_recon_f = B_f @ A0_f
+    ls_err = (M_f - M_recon_f).norm().item() * scaling
+    M_norm = M_f.norm().item() * scaling
+    ls_err_relative = ls_err / (M_norm + 1e-8)
+    
+    return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
+
+def flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling):
+    """
+    Conv2d 버전: 4D → 2D flatten 후 동일 Least Squares 적용.
+    """
+    C_out = W_global.shape[0]
+    W_g2d = W_global.view(C_out, -1)
+    W0_2d = W0.view(C_out, -1)
+    lambda_0_2d = W_g2d.norm(p=2, dim=1, keepdim=True)
+    lambda_0 = lambda_0_2d.view(C_out, 1, 1, 1)
+    orig_dtype = W_global.dtype
+    M_f = ((W_g2d - W0_2d) / scaling).float()
+    A0_f = A_ref.float()
+    AAt = A0_f @ A0_f.T
+    B_new = torch.linalg.solve(AAt, A0_f @ M_f.T).T.to(orig_dtype)
+    V_new = W0_2d + (B_new @ A_ref) * scaling
+    lambda_1 = V_new.norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
+    
+    B_f = B_new.float()
+    M_recon_f = B_f @ A0_f
+    ls_err = (M_f - M_recon_f).norm().item() * scaling
+    M_norm = M_f.norm().item() * scaling
+    ls_err_relative = ls_err / (M_norm + 1e-8)
+    
+    return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
+
+def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False, svd_a=False):
     """
     FlexLoRA 서버 집계:
       1) 각 클라이언트의 (m_k, B_k, A_k)로 W_k = m_k * (V_k / ||V_k||_row) 재구성
       2) W_global = FedAvg(W_k)
       3a) freeze_a=False: SVD 분해 → m_new, B_new, A_new
       3b) freeze_a=True:  Least Squares → m_new, B_new (A_new = A₀ 고정)
+      3c) svd_a=True:     A 행렬 SVD 추출 후 Least Squares → m_new, B_new (A_new = SVD(A_k))
+
 
     Returns:
       updated_dora_params: {"{layer_name}.m": tensor, ...}  ← global_model에 load할 파라미터
@@ -355,7 +403,6 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
                 'ls_err_relative':      float('inf'),
             }
             continue
-
         if freeze_a:
             A0 = module.lora_A.data
             if is_conv:
@@ -366,12 +413,41 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
             trunc_err = ls_err
             trunc_err_relative = 0.0
             sv = torch.zeros(1)
-        elif is_conv:
-            m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
-            ls_err, ls_err_relative = 0.0, 0.0
+        elif svd_a:
+            # A_k 행렬들을 수집하고 stack
+            A_list = []
+            for cid, sd in updated_client_weights.items():
+                A_k = sd[f"{layer_name}.lora_A"].to(W0.device)
+                if is_conv:
+                    A_list.append(A_k.view(r, -1))
+                else:
+                    A_list.append(A_k)
+            A_stack = torch.cat(A_list, dim=0) # (num_clients * r, in_features)
+
+            # SVD를 통해 A_ref 추출
+            U_A, S_A, Vh_A = torch.linalg.svd(A_stack.float(), full_matrices=False)
+            actual_r = min(r, S_A.shape[0])
+            A_ref = Vh_A[:actual_r, :].to(W0.dtype).clone()
+
+            # B_new 계산 (Least Squares)
+            if is_conv:
+                # A_ref를 다시 원래 형태로 복원해야 함
+                A_new = A_ref.view(r, C_in_g, k1, k2)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling)
+            else:
+                A_new = A_ref
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_linear_svd_a(W_global, W0, A_ref, scaling)
+
+            trunc_err = ls_err # SVD_A는 A를 SVD로 추출하고 B는 LS로 구하므로 ls_err를 사용
+            trunc_err_relative = 0.0
+            sv = S_A # A_stack의 SVD 결과
         else:
-            m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
-            ls_err, ls_err_relative = 0.0, 0.0
+            if is_conv:
+                m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
+                ls_err, ls_err_relative = 0.0, 0.0
+            else:
+                m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
+                ls_err, ls_err_relative = 0.0, 0.0
 
         lambda_diff = (l1 - l0).norm().item()
         lambda_relative = lambda_diff / (l0.norm().item() + 1e-8)
@@ -461,4 +537,3 @@ def compute_temporal_dora_correlation(delta_m_series, delta_v_series):
     if len(dm) < 2 or np.std(dm) == 0 or np.std(dv) == 0:
         return 0.0
     return float(np.corrcoef(dm, dv)[0, 1])
-

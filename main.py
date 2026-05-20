@@ -87,6 +87,7 @@ def get_args():
     parser.add_argument('--use_cosine_recal', action='store_true', help='Enable Cosine Similarity Re-calibration')
     parser.add_argument('--flex_lora', action='store_true', help='FlexLoRA: train lora_A on clients, use SVD-based server aggregation.')
     parser.add_argument('--flex_lora_freeze_a', action='store_true', help='FlexLoRA: freeze A on clients, use Least Squares (not SVD) for B_new on server.')
+    parser.add_argument('--flex_lora_svd_a', action='store_true', help='FlexLoRA SVD_A: extract common A_ref from stacked client A matrices using SVD, then compute B via Least Squares.')
     parser.add_argument('--ft_classifier', action='store_true', help='Full fine-tune the final classifier layer instead of applying LoRA/DoRA.')
     parser.add_argument('--trainable_A', action='store_true', help='Make lora_A trainable in LoRA/DoRA (non-FlexLoRA mode)')
 
@@ -395,18 +396,20 @@ def main():
             from peft_utils import flex_lora_aggregate
             updated_dora_params, lambda_logs = flex_lora_aggregate(
                 updated_client_weights, fed_avg_freqs, global_model,
-                freeze_a=getattr(args, 'flex_lora_freeze_a', False))
+                freeze_a=getattr(args, 'flex_lora_freeze_a', False),
+                svd_a=getattr(args, 'flex_lora_svd_a', False))
             global_model.load_state_dict(updated_dora_params, strict=False)
             global_w.update(updated_dora_params)
 
             round_sv_logs = {}
             is_freeze_a = getattr(args, 'flex_lora_freeze_a', False)
-            err_label = 'ls_err' if is_freeze_a else 'trunc_err'
+            is_svd_a = getattr(args, 'flex_lora_svd_a', False)
+            err_label = 'ls_err' if (is_freeze_a or is_svd_a) else 'trunc_err'
             for lname, lvals in lambda_logs.items():
                 err_str = (
                     f'ls_err={lvals["ls_err"]:.6f}, '
                     f'ls_err_relative={lvals["ls_err_relative"]:.6f}'
-                    if is_freeze_a else
+                    if (is_freeze_a or is_svd_a) else
                     f'trunc_err={lvals["trunc_err"]:.6f}, '
                     f'trunc_err_relative={lvals["trunc_err_relative"]:.6f}'
                 )

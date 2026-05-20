@@ -923,6 +923,9 @@ def train_local_net(dataloaders, nets, global_model, prev_nets, device, round, l
         if args.optimizer == 'adam':
             optimizer = optim.Adam(params_group,
                                    lr=lr, weight_decay=args.reg)
+        elif args.optimizer == 'adamw':
+            optimizer = optim.AdamW(params_group,
+                                   lr=lr, weight_decay=args.reg)
         elif args.optimizer == 'amsgrad':
             optimizer = optim.Adam(params_group,
                                    lr=lr, weight_decay=args.reg, amsgrad=True)

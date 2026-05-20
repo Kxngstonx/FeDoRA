@@ -3,149 +3,114 @@ import subprocess
 import time
 import queue
 import threading
-import argparse
-
-BETAS = [0.5]
-GLUE_TASKS = ['sst2', 'mnli', 'qnli', 'qqp']
-
-FL_BASE = (
-    "--round 30 --epochs 1 "
-    "--n_clients 3 --sample_fraction 1.0 "
-    "--seed 42 "
-    "--optimizer sgd --lr 1e-4 --scheduler cosine "
-    "--partition noniid "
-    "--lora_r 8 --lora_alpha 8 "
-    "--local_steps 50 "
-    "--ft_classifier"
-)
-
-METHODS = {
-    'LoRA_TrainableA':  '--peft lora --trainable_A',
-    'FlexLoRA':         '--peft dora --flex_lora',
-    'FlexLoRA_FreezeA': '--peft dora --flex_lora --flex_lora_freeze_a',
-}
-
 
 def run_command(command, gpu_id, task_name, log_dir):
-    print(f"[{time.strftime('%H:%M:%S')}] Starting {task_name} on GPU {gpu_id}...\n")
-
+    """지정된 GPU에서 단일 명령어를 실행하고 로그를 파일에 기록합니다."""
+    print(f"[{time.strftime('%H:%M:%S')}] Starting '{task_name}' on GPU {gpu_id}...\n")
+    
+    # GPU 할당을 위한 환경 변수 설정
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     env["PYTHONUNBUFFERED"] = "1"
-
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, task_name + '.log')
-
-    with open(log_path, 'a') as log_f:
+    
+    # 로그 디렉토리 및 파일 설정
+    log_file_path = os.path.join(log_dir, f"{task_name}.log")
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    
+    # 서브프로세스 실행
+    with open(log_file_path, "w") as f:
         process = subprocess.Popen(
-            command,
-            shell=True,
+            command, 
+            shell=True, 
             env=env,
-            stdout=log_f,
-            stderr=log_f,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
         )
+        
+        # 실시간으로 로그 파일에 쓰기
+        for line in process.stdout:
+            f.write(line)
+            f.flush()
+            
         process.wait()
+        
+    if process.returncode == 0:
+        print(f"[{time.strftime('%H:%M:%S')}] Successfully finished '{task_name}' on GPU {gpu_id}.")
+    else:
+        print(f"[{time.strftime('%H:%M:%S')}] Task '{task_name}' failed on GPU {gpu_id} with return code {process.returncode}.")
+    print("-" * 60)
 
-    print(f"\n[{time.strftime('%H:%M:%S')}] Finished {task_name} on GPU {gpu_id}.")
-
-
-def worker(gpu_id, task_queue, dry_run):
+def worker(gpu_id, task_queue):
     while not task_queue.empty():
         try:
             task_name, command, log_dir = task_queue.get(timeout=1)
-            if dry_run:
-                print(f"[DRY-RUN] {task_name}\n  {command}\n")
-            else:
-                run_command(command, gpu_id, task_name, log_dir)
+            run_command(command, gpu_id, task_name, log_dir)
             task_queue.task_done()
         except queue.Empty:
             break
 
-
-def build_tasks():
-    tasks = []
-
-    for task in GLUE_TASKS:
-        for beta in BETAS:
-            log_dir = f'./logs/roberta_glue/{task}/'
-            base = f'python3 main.py --model roberta-large --dataset glue_{task} {FL_BASE} --beta {beta} --logdir {log_dir}'
-            for method_name, method_flags in METHODS.items():
-                tag = f'RoBERTa_{task.upper()}_Beta{beta}_{method_name}'
-                cmd = f'{base} {method_flags} --log_file_name {tag}'
-                tasks.append((tag, cmd, log_dir))
-
-    return tasks
-
-
-def get_free_gpu_ids(threshold_mib=40000):
-    result = subprocess.run(
-        ['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,noheader,nounits'],
-        capture_output=True, text=True
-    )
-    free = []
-    for line in result.stdout.strip().split('\n'):
-        idx, mem = line.split(', ')
-        if int(mem) >= threshold_mib:
-            free.append(int(idx))
-    return free
-
-
-def gpu_monitor(task_queue, active_gpus, threads, dry_run, poll_interval=60):
-    while not task_queue.empty():
-        for gpu_id in get_free_gpu_ids():
-            if gpu_id not in active_gpus and not task_queue.empty():
-                print(f"[{time.strftime('%H:%M:%S')}] GPU {gpu_id} is now free — spawning worker.")
-                active_gpus.add(gpu_id)
-                t = threading.Thread(target=worker, args=(gpu_id, task_queue, dry_run))
-                t.start()
-                threads.append(t)
-        time.sleep(poll_interval)
-
-
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dry-run', action='store_true', help='Print commands without executing')
-    parser.add_argument('--gpus', type=int, nargs='+', default=None, help='GPU IDs to use (default: auto-detect free GPUs)')
-    parser.add_argument('--mem-threshold', type=int, default=40000, help='Free memory threshold in MiB to consider a GPU available')
-    args = parser.parse_args()
+    # 사용할 GPU 리스트
+    gpus = [0, 1]
+    
+    # 사용할 데이터셋 리스트 (utils.py가 glue_ 접두사를 요구함)
+    datasets = ["glue_sst2", "glue_mnli", "glue_qqp"]
+    
+    # 공통 하이퍼파라미터 유지
+    model = "roberta-large" # 사용 요청하신 로버타 모델 이름
+    rounds = 30
+    epochs = 1
+    n_clients = 3
+    sample_fraction = 1.0
+    beta = 0.5
+    
+    # 4개의 실험 메소드 정의
+    METHODS = {
+        'LoRA_TrainableA':  '--peft lora --trainable_A',
+        'FlexLoRA':         '--peft dora --flex_lora',
+        'FlexLoRA_FreezeA': '--peft dora --flex_lora --flex_lora_freeze_a',
+        'FlexLoRA_SVD_A':   '--peft dora --flex_lora --flex_lora_svd_a',
+    }
 
-    tasks = build_tasks()
-
+    # 큐에 작업 추가 (데이터셋 x 메소드 = 총 12개 실험)
     task_queue = queue.Queue()
-    for t in tasks:
-        task_queue.put(t)
+    
+    for dataset in datasets:
+        # 데이터셋별로 로그 디렉토리 분리 (선택사항)
+        log_dir = f"./logs/roberta_glue_experiments/{dataset}/"
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # 공통 명령어
+        common_args = (
+            f"--model {model} --dataset {dataset} --round {rounds} "
+            f"--epochs {epochs} --n_clients {n_clients} --sample_fraction {sample_fraction} --seed 42 "
+            f"--optimizer adamw --lr 1e-4 --scheduler cosine --beta {beta} --partition noniid "
+            f"--lora_r 8 --lora_alpha 8 --local_steps 50 --ft_classifier "
+        )
+        
+        for method_name, method_args in METHODS.items():
+            task_name = f"{dataset}_{method_name}"
+            cmd = f"python3 main.py {common_args} {method_args} --logdir {log_dir} --log_file_name {task_name}"
+            task_queue.put((task_name, cmd, log_dir))
 
-    if args.gpus is not None:
-        initial_gpus = args.gpus
-    else:
-        initial_gpus = get_free_gpu_ids(args.mem_threshold)
-        if not initial_gpus:
-            print(f"[{time.strftime('%H:%M:%S')}] No free GPUs found (threshold: {args.mem_threshold} MiB). Waiting...")
-            while not initial_gpus:
-                time.sleep(30)
-                initial_gpus = get_free_gpu_ids(args.mem_threshold)
+    total_tasks = task_queue.qsize()
+    print(f"[{time.strftime('%H:%M:%S')}] Starting {total_tasks} experiments across {len(gpus)} GPUs (GPUs: {gpus})")
+    print(f"Datasets to run: {datasets}")
+    print("=" * 60)
 
-    print(f"[{time.strftime('%H:%M:%S')}] {len(tasks)} tasks, starting on GPU(s): {initial_gpus}\n")
-
-    active_gpus = set(initial_gpus)
+    # 워커 스레드 생성 (각 GPU당 1개의 스레드가 1개의 프로세스를 띄움)
     threads = []
-    for gpu_id in initial_gpus:
-        t = threading.Thread(target=worker, args=(gpu_id, task_queue, args.dry_run))
+    for gpu_id in gpus:
+        t = threading.Thread(target=worker, args=(gpu_id, task_queue))
         t.start()
         threads.append(t)
-
-    monitor = threading.Thread(
-        target=gpu_monitor,
-        args=(task_queue, active_gpus, threads, args.dry_run),
-        daemon=True
-    )
-    monitor.start()
-
+        
     for t in threads:
         t.join()
 
-    print(f"[{time.strftime('%H:%M:%S')}] All experiments completed.")
-
+    print(f"[{time.strftime('%H:%M:%S')}] All {total_tasks} experiments have been completed.")
 
 if __name__ == "__main__":
     main()
