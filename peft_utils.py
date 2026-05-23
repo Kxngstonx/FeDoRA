@@ -117,7 +117,12 @@ class DoRAConv2d(LoRALayer):
         x_dropped = self.lora_dropout(x)
         return F.conv2d(x_dropped, W_new, self.conv.bias, stride=self.conv.stride, padding=self.conv.padding, dilation=self.conv.dilation, groups=self.conv.groups)
 
-def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None, global_skip_modules=None):
+def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None, global_skip_modules=None, target_modules=None):
+    """
+    target_modules: list of module names to wrap with LoRA/DoRA (e.g. ['query', 'value']).
+                    None means apply to all Linear/Conv2d layers (original behavior).
+                    Non-matching Linear/Conv2d layers remain as full fine-tune targets.
+    """
     if peft_type == "none":
         return model
 
@@ -133,7 +138,11 @@ def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, t
             continue
 
         if len(list(module.children())) > 0:
-            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules)
+            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules, target_modules=target_modules)
+
+        # target_modules 지정 시 해당 이름의 모듈만 LoRA 적용; 나머지는 그대로 두어 Full FT 유지
+        if target_modules is not None and name not in target_modules:
+            continue
 
         if isinstance(module, nn.Linear):
             if peft_type == "lora":
@@ -147,7 +156,7 @@ def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, t
                 setattr(model, name, DoRAConv2d(module, r, lora_alpha, lora_dropout, trainable_A))
     return model
 
-def flex_lora_decompose_linear(W_global, W0, r, scaling):
+def flex_dora_decompose_linear(W_global, W0, r, scaling):
     """
     W_global을 DoRA 파라미터 (m_new, B_new, A_new)로 SVD 분해.
     Alternating optimization 1 step:
@@ -186,7 +195,7 @@ def flex_lora_decompose_linear(W_global, W0, r, scaling):
     return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, trunc_err_relative, S
 
 
-def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
+def flex_dora_decompose_conv2d(W_global, W0, r, scaling):
     """
     Conv2d W_global을 DoRA 파라미터 (m_new, B_new, A_new)로 SVD 분해.
     4D weight를 2D로 flatten해 처리하고 m shape만 복원.
@@ -222,7 +231,7 @@ def flex_lora_decompose_conv2d(W_global, W0, r, scaling):
     return lambda_0, B_new, A_new, lambda_0, lambda_1, trunc_err, trunc_err_relative, S
 
 
-def flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
+def flex_dora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
     """
     A0 고정 시 Least Squares로 B_new만 계산. SVD 없이 O(r²) 역산.
     min_B ||（W_global - W0）/s - B @ A0||_F²  →  B_new = M @ A0† = solve(A0A0ᵀ, A0 @ Mᵀ)ᵀ
@@ -241,7 +250,7 @@ def flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling):
     return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
 
-def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
+def flex_dora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
     """
     Conv2d 버전: 4D → 2D flatten 후 동일 Least Squares 적용.
     """
@@ -263,7 +272,7 @@ def flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling):
     return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
 
-def flex_lora_decompose_linear_svd_a(W_global, W0, A_ref, scaling):
+def flex_dora_decompose_linear_svd_a(W_global, W0, A_ref, scaling):
     """
     A_ref가 SVD로 추출된 공통 방향일 때 Least Squares로 B_new만 계산.
     """
@@ -284,7 +293,7 @@ def flex_lora_decompose_linear_svd_a(W_global, W0, A_ref, scaling):
     
     return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
-def flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling):
+def flex_dora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling):
     """
     Conv2d 버전: 4D → 2D flatten 후 동일 Least Squares 적용.
     """
@@ -309,9 +318,9 @@ def flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling):
     
     return lambda_0, B_new, lambda_0, lambda_1, ls_err, ls_err_relative
 
-def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False, svd_a=False):
+def flex_dora_aggregate(updated_client_weights, fed_avg_freqs, global_model, freeze_a=False, svd_a=False):
     """
-    FlexLoRA 서버 집계:
+    FlexDoRA 서버 집계:
       1) 각 클라이언트의 (m_k, B_k, A_k)로 W_k = m_k * (V_k / ||V_k||_row) 재구성
       2) W_global = FedAvg(W_k)
       3a) freeze_a=False: SVD 분해 → m_new, B_new, A_new
@@ -406,9 +415,9 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
         if freeze_a:
             A0 = module.lora_A.data
             if is_conv:
-                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_dora_decompose_conv2d_fixed_a(W_global, W0, A0, scaling)
             else:
-                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_linear_fixed_a(W_global, W0, A0, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_dora_decompose_linear_fixed_a(W_global, W0, A0, scaling)
             A_new = A0
             trunc_err = ls_err
             trunc_err_relative = 0.0
@@ -433,20 +442,20 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
             if is_conv:
                 # A_ref를 다시 원래 형태로 복원해야 함
                 A_new = A_ref.view(r, C_in_g, k1, k2)
-                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_dora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling)
             else:
                 A_new = A_ref
-                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_linear_svd_a(W_global, W0, A_ref, scaling)
+                m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_dora_decompose_linear_svd_a(W_global, W0, A_ref, scaling)
 
             trunc_err = ls_err # SVD_A는 A를 SVD로 추출하고 B는 LS로 구하므로 ls_err를 사용
             trunc_err_relative = 0.0
             sv = S_A # A_stack의 SVD 결과
         else:
             if is_conv:
-                m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_lora_decompose_conv2d(W_global, W0, r, scaling)
+                m_new, B_new, A_new, l0, l1, trunc_err, sv = flex_dora_decompose_conv2d(W_global, W0, r, scaling)
                 ls_err, ls_err_relative = 0.0, 0.0
             else:
-                m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_lora_decompose_linear(W_global, W0, r, scaling)
+                m_new, B_new, A_new, l0, l1, trunc_err, trunc_err_relative, sv = flex_dora_decompose_linear(W_global, W0, r, scaling)
                 ls_err, ls_err_relative = 0.0, 0.0
 
         lambda_diff = (l1 - l0).norm().item()
@@ -470,6 +479,60 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
         }
 
     return updated_dora_params, lambda_logs
+
+
+def get_model_weight_components(model):
+    """Extract (m, V) from all weight layers regardless of PEFT type.
+
+    DoRALinear/Conv2d : m = explicit magnitude param, V = W0 + BA·scale
+    LoRALinear/Conv2d : V = W0 + BA·scale,  m = row-wise norm of V
+    nn.Linear/Conv2d  : V = weight,          m = row-wise norm of V
+    Inner base modules (e.g. LoRALinear.linear) are skipped.
+    """
+    excluded_ids = set()
+    for module in model.modules():
+        if isinstance(module, (LoRALinear, LoRAConv2d, DoRALinear, DoRAConv2d)):
+            if hasattr(module, 'linear'):
+                excluded_ids.add(id(module.linear))
+            if hasattr(module, 'conv'):
+                excluded_ids.add(id(module.conv))
+
+    components = {}
+    for name, module in model.named_modules():
+        if isinstance(module, DoRAConv2d):
+            W0 = module.conv.weight
+            C_out, C_in_g, k1, k2 = W0.shape
+            BA = (module.lora_B @ module.lora_A) * module.scaling
+            V = (W0 + BA.view(C_out, C_in_g, k1, k2)).clone().detach()
+            components[name] = {'m': module.m.clone().detach(), 'V': V}
+        elif isinstance(module, DoRALinear):
+            W0 = module.linear.weight
+            BA = (module.lora_B @ module.lora_A) * module.scaling
+            V = (W0 + BA).clone().detach()
+            components[name] = {'m': module.m.clone().detach(), 'V': V}
+        elif isinstance(module, LoRAConv2d):
+            W0 = module.conv.weight
+            C_out, C_in_g, k1, k2 = W0.shape
+            BA = (module.lora_B @ module.lora_A) * module.scaling
+            V = (W0 + BA.view(C_out, C_in_g, k1, k2)).clone().detach()
+            m = V.view(C_out, -1).norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
+            components[name] = {'m': m, 'V': V}
+        elif isinstance(module, LoRALinear):
+            W0 = module.linear.weight
+            BA = (module.lora_B @ module.lora_A) * module.scaling
+            V = (W0 + BA).clone().detach()
+            m = V.norm(p=2, dim=1, keepdim=True)
+            components[name] = {'m': m, 'V': V}
+        elif isinstance(module, nn.Linear) and id(module) not in excluded_ids:
+            V = module.weight.clone().detach()
+            m = V.norm(p=2, dim=1, keepdim=True)
+            components[name] = {'m': m, 'V': V}
+        elif isinstance(module, nn.Conv2d) and id(module) not in excluded_ids:
+            W = module.weight.clone().detach()
+            C_out = W.shape[0]
+            m = W.view(C_out, -1).norm(p=2, dim=1, keepdim=True).view(C_out, 1, 1, 1)
+            components[name] = {'m': m, 'V': W}
+    return components
 
 
 def get_dora_components(model):

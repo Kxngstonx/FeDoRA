@@ -35,7 +35,8 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=32, help='input batch size for training')
     parser.add_argument('--test_batch_size', type=int, default=32, help='batch size for validation or test')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
-    parser.add_argument('--scheduler', default='step', help='scheduler for rounds [linear, cosine, step, None]')
+    parser.add_argument('--scheduler', default='step', help='scheduler for rounds [linear, cosine, step, exponential, None]')
+    parser.add_argument('--exp_gamma', type=float, default=0.99, help='decay rate per round for exponential scheduler')
     parser.add_argument('--schedule_round', type=int, nargs='+', default=[250])
     parser.add_argument('--lr_gamma', type=float, default=0.1)
     parser.add_argument('--eta_min', type=float, default=0.0, help='minimum learning rate')
@@ -85,11 +86,12 @@ def get_args():
     parser.add_argument('--dora_warmup_ratio', type=float, default=0.0, help='Ratio of local steps to freeze A, B and only train m')
     parser.add_argument('--dora_warmup_lr_mult', type=float, default=1.0, help='LR multiplier for m during warmup')
     parser.add_argument('--use_cosine_recal', action='store_true', help='Enable Cosine Similarity Re-calibration')
-    parser.add_argument('--flex_lora', action='store_true', help='FlexLoRA: train lora_A on clients, use SVD-based server aggregation.')
-    parser.add_argument('--flex_lora_freeze_a', action='store_true', help='FlexLoRA: freeze A on clients, use Least Squares (not SVD) for B_new on server.')
-    parser.add_argument('--flex_lora_svd_a', action='store_true', help='FlexLoRA SVD_A: extract common A_ref from stacked client A matrices using SVD, then compute B via Least Squares.')
+    parser.add_argument('--flex_dora', action='store_true', help='FlexDoRA: train lora_A on clients, use SVD-based server aggregation.')
+    parser.add_argument('--flex_dora_freeze_a', action='store_true', help='FlexDoRA: freeze A on clients, use Least Squares (not SVD) for B_new on server.')
+    parser.add_argument('--flex_dora_svd_a', action='store_true', help='FlexDoRA SVD_A: extract common A_ref from stacked client A matrices using SVD, then compute B via Least Squares.')
     parser.add_argument('--ft_classifier', action='store_true', help='Full fine-tune the final classifier layer instead of applying LoRA/DoRA.')
-    parser.add_argument('--trainable_A', action='store_true', help='Make lora_A trainable in LoRA/DoRA (non-FlexLoRA mode)')
+    parser.add_argument('--trainable_A', action='store_true', help='Make lora_A trainable in LoRA/DoRA (non-FlexDoRA mode)')
+    parser.add_argument('--lora_target_modules', type=str, default=None, help='Comma-separated module names to apply LoRA/DoRA (e.g. "query,value"). Others remain full fine-tuned.')
 
 
     args = parser.parse_args()
@@ -148,6 +150,11 @@ def main():
     else:
         args.freeze_layers_list = []
 
+    if args.lora_target_modules:
+        args.lora_target_modules_list = [m.strip() for m in args.lora_target_modules.split(',') if m.strip()]
+    else:
+        args.lora_target_modules_list = None
+
     if args.finetune_epochs:
         args.finetune_epochs_list = [int(x) for x in args.finetune_epochs.split(',') if x.strip().isdigit()]
     else:
@@ -184,7 +191,11 @@ def main():
             _ft_classifier_global_skip = ['classifier']
         elif 'qwen' in args.model:
             _ft_classifier_global_skip = ['score']
-    _peft_kwargs = dict(trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), global_skip_modules=_ft_classifier_global_skip)
+    _peft_kwargs = dict(
+        trainable_A=(getattr(args, 'flex_dora', False) and not getattr(args, 'flex_dora_freeze_a', False)) or getattr(args, 'trainable_A', False),
+        global_skip_modules=_ft_classifier_global_skip,
+        target_modules=getattr(args, 'lora_target_modules_list', None),
+    )
     base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), **_peft_kwargs)
 
     global_model = copy.deepcopy(base_global_model)
@@ -212,8 +223,9 @@ def main():
     lr = args.lr
 
     from peft_utils import (get_dora_components, get_dora_delta_scalars,
-                            get_client_dora_delta_scalars, compute_temporal_dora_correlation)
-    initial_dora_components = get_dora_components(global_model) if args.peft == 'dora' else None
+                            get_client_dora_delta_scalars, compute_temporal_dora_correlation,
+                            get_model_weight_components)
+    initial_components = get_model_weight_components(global_model)
     dora_server_dm_accum = []
     dora_server_dv_accum = []
     checkpoint_interval = max(1, args.round // 5)
@@ -250,8 +262,8 @@ def main():
             
             local_model.load_state_dict(global_w, strict=False)
             
-            # Restore local m for decoupled DoRA (flex_lora 활성 시 서버 값을 그대로 사용하므로 복원 안 함)
-            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_lora', False):
+            # Restore local m for decoupled DoRA (flex_dora 활성 시 서버 값을 그대로 사용하므로 복원 안 함)
+            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_dora', False):
                 if cid in client_m_storage:
                     local_model.load_state_dict(client_m_storage[cid], strict=False) # Client의 magnitude parameter 집계에서 제외
                     
@@ -285,8 +297,7 @@ def main():
 
             apply_layer_freezing(local_model, args)
 
-            if args.peft == 'dora':
-                before_dora_components = get_dora_components(local_model)
+            before_components = get_model_weight_components(local_model)
 
             nets_dict = {cid: local_model}
             dl_dict = {cid: dataloaders_this_round[cid]}
@@ -301,12 +312,11 @@ def main():
             )
             lr = new_lr
 
-            if args.peft == 'dora':
-                after_dora_components = get_dora_components(local_model)
-                dm_layers, dv_layers = get_client_dora_delta_scalars(before_dora_components, after_dora_components)
-                client_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
-                logger.info(f'ROUND {round} CLIENT {cid} DoRA Corr (layer-wise): {client_corr:.4f}')
-                pkl_dict.setdefault('client_dora_corr', []).append({'round': round, 'cid': cid, 'corr': client_corr})
+            after_components = get_model_weight_components(local_model)
+            dm_layers, dv_layers = get_client_dora_delta_scalars(before_components, after_components)
+            client_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
+            logger.info(f'ROUND {round} CLIENT {cid} Corr (layer-wise): {client_corr:.4f}')
+            pkl_dict.setdefault('client_corr', []).append({'round': round, 'cid': cid, 'corr': client_corr})
 
             round_loss += loss
             
@@ -322,7 +332,7 @@ def main():
             updated_client_weights[cid] = {k: v.clone() for k, v in local_model.state_dict().items()}
             
             # Save local m for decoupled DoRA
-            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_lora', False):
+            if args.peft == 'dora' and args.decoupled_dora and not getattr(args, 'flex_dora', False):
                 client_m_storage[cid] = {k: v.clone() for k, v in local_model.state_dict().items() if k.endswith('.m')}
                 
             # Save V_local for Cosine Re-calibration next round
@@ -373,8 +383,8 @@ def main():
                             elif freeze_mode == 'last' and ('.conv3.' in key or '.conv2.' in key): skip = True
                     if classifier_prefix and key.startswith(classifier_prefix): skip = True
                     if args.decoupled_dora and key.endswith('.m'): skip = True
-                    # FlexLoRA: DoRA 파라미터는 flex_lora_aggregate가 별도 처리
-                    if getattr(args, 'flex_lora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
+                    # FlexDoRA: DoRA 파라미터는 flex_dora_aggregate가 별도 처리
+                    if getattr(args, 'flex_dora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
                     if not skip: global_w[key] = net_para[key] * weight
             else:
                 for key in net_para:
@@ -385,25 +395,25 @@ def main():
                             elif freeze_mode == 'last' and ('.conv3.' in key or '.conv2.' in key): skip = True
                     if classifier_prefix and key.startswith(classifier_prefix): skip = True
                     if args.decoupled_dora and key.endswith('.m'): skip = True
-                    # FlexLoRA: DoRA 파라미터는 flex_lora_aggregate가 별도 처리
-                    if getattr(args, 'flex_lora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
+                    # FlexDoRA: DoRA 파라미터는 flex_dora_aggregate가 별도 처리
+                    if getattr(args, 'flex_dora', False) and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
                     if not skip: global_w[key] += net_para[key] * weight
 
         global_model.load_state_dict(global_w, strict=False)
 
-        # FlexLoRA 집계: W_k 재구성 → FedAvg → SVD 분해로 m_new, B_new, A_new 초기화
-        if getattr(args, 'flex_lora', False) and args.peft == 'dora':
-            from peft_utils import flex_lora_aggregate
-            updated_dora_params, lambda_logs = flex_lora_aggregate(
+        # FlexDoRA 집계: W_k 재구성 → FedAvg → SVD 분해로 m_new, B_new, A_new 초기화
+        if getattr(args, 'flex_dora', False) and args.peft == 'dora':
+            from peft_utils import flex_dora_aggregate
+            updated_dora_params, lambda_logs = flex_dora_aggregate(
                 updated_client_weights, fed_avg_freqs, global_model,
-                freeze_a=getattr(args, 'flex_lora_freeze_a', False),
-                svd_a=getattr(args, 'flex_lora_svd_a', False))
+                freeze_a=getattr(args, 'flex_dora_freeze_a', False),
+                svd_a=getattr(args, 'flex_dora_svd_a', False))
             global_model.load_state_dict(updated_dora_params, strict=False)
             global_w.update(updated_dora_params)
 
             round_sv_logs = {}
-            is_freeze_a = getattr(args, 'flex_lora_freeze_a', False)
-            is_svd_a = getattr(args, 'flex_lora_svd_a', False)
+            is_freeze_a = getattr(args, 'flex_dora_freeze_a', False)
+            is_svd_a = getattr(args, 'flex_dora_svd_a', False)
             err_label = 'ls_err' if (is_freeze_a or is_svd_a) else 'trunc_err'
             for lname, lvals in lambda_logs.items():
                 err_str = (
@@ -414,83 +424,80 @@ def main():
                     f'trunc_err_relative={lvals["trunc_err_relative"]:.6f}'
                 )
                 logger.info(
-                    f'ROUND {round} FlexLoRA [{lname}] '
+                    f'ROUND {round} FlexDoRA [{lname}] '
                     f'lambda_diff={lvals["lambda_diff"]:.6f}, '
                     f'lambda_relative={lvals["lambda_relative"]:.6f} | '
                     f'w_diff={lvals["w_diff"]:.6f}, '
                     f'w_relative={lvals["w_relative"]:.6f}, '
                     f'{err_str}')
                 round_sv_logs[lname] = lvals['singular_values']
-            pkl_dict.setdefault('flex_lora_sv', []).append(round_sv_logs)
+            pkl_dict.setdefault('flex_dora_sv', []).append(round_sv_logs)
 
-        if args.peft == 'dora':
-            from utils import DoRASimilarityCalculator
-            sim_calc = DoRASimilarityCalculator(temperature=1.0)
-            
-            server_dora = get_dora_components(global_model)
-            dm_layers, dv_layers = get_dora_delta_scalars(initial_dora_components, server_dora)
-            round_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
-            logger.info(f'ROUND {round} DoRA Server Corr (layer-wise): {round_corr:.4f}')
-            is_checkpoint = (round + 1) % checkpoint_interval == 0 or round == args.round - 1
-            if is_checkpoint:
-                dora_server_dm_accum.append(dm_layers)
-                dora_server_dv_accum.append(dv_layers)
-            
-            # Calculate metrics for each client vs server
-            l2_m_list, l2_v_list = [], []
-            kl_m_list, kl_v_list = [], []
-            
-            for cid, client_w in updated_client_weights.items():
-                local_model.load_state_dict(client_w)
-                client_dora = get_dora_components(local_model)
-                
-                cid_l2_m, cid_l2_v = 0.0, 0.0
-                cid_kl_m, cid_kl_v = 0.0, 0.0
-                count = 0
-                
-                for name in server_dora.keys():
-                    if name in client_dora:
-                        m_c, V_c = client_dora[name]['m'], client_dora[name]['V']
-                        m_s, V_s = server_dora[name]['m'], server_dora[name]['V']
-                        
-                        # L2
-                        l2_m, l2_v = sim_calc.compute_dora_divergence(m_c, m_s, V_c, V_s, method='l2', mode='filter')
-                        # KL
-                        kl_m, kl_v = sim_calc.compute_dora_divergence(m_c, m_s, V_c, V_s, method='kl', mode='filter')
-                        
-                        cid_l2_m += l2_m.item()
-                        cid_l2_v += l2_v.item()
-                        cid_kl_m += kl_m.item()
-                        cid_kl_v += kl_v.item()
-                        count += 1
-                        
-                if count > 0:
-                    l2_m_list.append(cid_l2_m / count)
-                    l2_v_list.append(cid_l2_v / count)
-                    kl_m_list.append(cid_kl_m / count)
-                    kl_v_list.append(cid_kl_v / count)
-            
-            if l2_m_list:
-                avg_l2_m = sum(l2_m_list) / len(l2_m_list)
-                avg_l2_v = sum(l2_v_list) / len(l2_v_list)
-                avg_kl_m = sum(kl_m_list) / len(kl_m_list)
-                avg_kl_v = sum(kl_v_list) / len(kl_v_list)
-                
-                logger.info(f'ROUND {round} Client-Server Similarity -> '
-                            f'L2(m): {avg_l2_m:.4f}, L2(V): {avg_l2_v:.4f} | '
-                            f'KL(m): {avg_kl_m:.4f}, KL(V): {avg_kl_v:.4f}')
+        from utils import DoRASimilarityCalculator
+        sim_calc = DoRASimilarityCalculator(temperature=1.0)
+
+        server_components = get_model_weight_components(global_model)
+        dm_layers, dv_layers = get_dora_delta_scalars(initial_components, server_components)
+        round_corr = compute_temporal_dora_correlation(dm_layers, dv_layers)
+        logger.info(f'ROUND {round} Server Corr (layer-wise): {round_corr:.4f}')
+        is_checkpoint = (round + 1) % checkpoint_interval == 0 or round == args.round - 1
+        if is_checkpoint:
+            dora_server_dm_accum.append(dm_layers)
+            dora_server_dv_accum.append(dv_layers)
+
+        # Calculate metrics for each client vs server
+        l2_m_list, l2_v_list = [], []
+        kl_m_list, kl_v_list = [], []
+
+        for cid, client_w in updated_client_weights.items():
+            local_model.load_state_dict(client_w)
+            client_components = get_model_weight_components(local_model)
+
+            cid_l2_m, cid_l2_v = 0.0, 0.0
+            cid_kl_m, cid_kl_v = 0.0, 0.0
+            count = 0
+
+            for name in server_components.keys():
+                if name in client_components:
+                    m_c, V_c = client_components[name]['m'], client_components[name]['V']
+                    m_s, V_s = server_components[name]['m'], server_components[name]['V']
+
+                    l2_m, l2_v = sim_calc.compute_dora_divergence(m_c, m_s, V_c, V_s, method='l2', mode='filter')
+                    kl_m, kl_v = sim_calc.compute_dora_divergence(m_c, m_s, V_c, V_s, method='kl', mode='filter')
+
+                    cid_l2_m += l2_m.item()
+                    cid_l2_v += l2_v.item()
+                    cid_kl_m += kl_m.item()
+                    cid_kl_v += kl_v.item()
+                    count += 1
+
+            if count > 0:
+                l2_m_list.append(cid_l2_m / count)
+                l2_v_list.append(cid_l2_v / count)
+                kl_m_list.append(cid_kl_m / count)
+                kl_v_list.append(cid_kl_v / count)
+
+        if l2_m_list:
+            avg_l2_m = sum(l2_m_list) / len(l2_m_list)
+            avg_l2_v = sum(l2_v_list) / len(l2_v_list)
+            avg_kl_m = sum(kl_m_list) / len(kl_m_list)
+            avg_kl_v = sum(kl_v_list) / len(kl_v_list)
+
+            logger.info(f'ROUND {round} Client-Server Similarity -> '
+                        f'L2(m): {avg_l2_m:.4f}, L2(V): {avg_l2_v:.4f} | '
+                        f'KL(m): {avg_kl_m:.4f}, KL(V): {avg_kl_v:.4f}')
 
         test_acc = compute_accuracy(global_model, global_test_dataloader, device=device)
         pkl_dict['acc'].append(test_acc)
         logger.info(f'>> Global Model Test accuracy: {test_acc:.4f}')
 
-    if args.peft == 'dora' and len(dora_server_dm_accum) >= 2:
+    if len(dora_server_dm_accum) >= 2:
         import numpy as np
         dm_all = np.concatenate(dora_server_dm_accum)
         dv_all = np.concatenate(dora_server_dv_accum)
         final_corr = compute_temporal_dora_correlation(dm_all, dv_all)
-        pkl_dict['dora_final_corr'] = final_corr
-        logger.info(f'DoRA Server Final Correlation (layer×checkpoint): {final_corr:.4f}')
+        pkl_dict['final_corr'] = final_corr
+        logger.info(f'Server Final Correlation (layer×checkpoint): {final_corr:.4f}')
 
     with open(os.path.join(args.logdir, log_file_name + '.pkl'), 'wb') as f:
         pickle.dump(pkl_dict, f)

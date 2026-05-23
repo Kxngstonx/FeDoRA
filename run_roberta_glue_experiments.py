@@ -68,10 +68,10 @@ def main():
     
     # 4개의 실험 메소드 정의
     METHODS = {
-        'LoRA_TrainableA':  '--peft lora --trainable_A',
-        'FlexLoRA':         '--peft dora --flex_lora',
-        'FlexLoRA_FreezeA': '--peft dora --flex_lora --flex_lora_freeze_a',
-        'FlexLoRA_SVD_A':   '--peft dora --flex_lora --flex_lora_svd_a',
+        'FFALoRA':  '--peft lora --trainable_A',
+        'FlexDoRA':         '--peft dora --flex_dora',
+        'FFADoRA':          '--peft dora --flex_dora --flex_dora_freeze_a',
+        'FlexDoRA_SVD_A':   '--peft dora --flex_dora --flex_dora_svd_a',
     }
 
     # 큐에 작업 추가 (데이터셋 x 메소드 = 총 12개 실험)

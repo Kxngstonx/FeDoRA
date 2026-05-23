@@ -876,6 +876,8 @@ def adjust_lr(round, current_lr, args):
             if round + 1 >= r:
                 decay_steps += 1
         new_lr = args.lr * (args.lr_gamma ** decay_steps)
+    elif args.scheduler == 'exponential':
+        new_lr = args.lr * (getattr(args, 'exp_gamma', 0.99) ** round)
     else:
         new_lr = args.lr
     return new_lr

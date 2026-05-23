@@ -68,10 +68,10 @@ def main():
     tasks = []
 
     for beta in betas:
-        log_dir = f'./logs/flex_lora_experiments/beta_{beta}/'
+        log_dir = f'./logs/flex_dora_experiments/beta_{beta}/'
         os.makedirs(log_dir, exist_ok=True)
 
-        log_file_name = f'Beta{beta}_FlexLoRA_FreezeA'
+        log_file_name = f'Beta{beta}_FFADoRA'
         base_cmd = (
             f'python3 main.py '
             f'--model qwen --dataset ag_news '
@@ -80,13 +80,13 @@ def main():
             f'--freeze_layer 0 --freeze_layers "" --finetune_epochs "" '
             f'--optimizer adam --lr 1e-4 --scheduler cosine '
             f'--beta {beta} --partition noniid '
-            f'--peft dora --flex_lora --flex_lora_freeze_a --ft_classifier '
+            f'--peft dora --flex_dora --flex_dora_freeze_a --ft_classifier '
             f'--lora_r 8 --lora_alpha 16 '
             f'--dora_m_wd 0.0 --dora_m_lr 1e-4 '
             f'--logdir {log_dir} --log_file_name {log_file_name}'
         )
 
-        tasks.append((f'Beta{beta}_FlexLoRA_FreezeA', base_cmd, log_dir, log_file_name))
+        tasks.append((f'Beta{beta}_FFADoRA', base_cmd, log_dir, log_file_name))
 
     task_queue = queue.Queue()
     for task in tasks:
