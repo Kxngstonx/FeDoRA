@@ -54,11 +54,11 @@ def main():
     dataset          = "glue_sst2"
     rounds           = 20
     epochs           = 1
-    local_steps      = 10       # step 수가 10을 초과하면 조기 중단
+    local_steps      = 32       
     n_clients        = 10
     sample_fraction  = 1.0      # 매 라운드 전체 클라이언트 참여
     beta             = 0.5      # Dirichlet 파라미터
-    batch_size       = 32
+    batch_size       = 64      
     lr               = 2e-4
     lora_r           = 8
     lora_alpha       = 32       # scaling factor
@@ -67,8 +67,8 @@ def main():
     lora_target_modules = "query,value"
 
     METHODS = {
-        'LoRA':           '--peft lora',
-        'FFALoRA':'--peft lora --trainable_A',
+        'LoRA':'--peft lora --trainable_A',
+        'FFALoRA':           '--peft lora',
         'DoRA':           '--peft dora',
         'FlexDoRA':       '--peft dora --flex_dora',
         'FFADoRA':        '--peft dora --flex_dora --flex_dora_freeze_a',

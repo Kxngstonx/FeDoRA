@@ -140,8 +140,11 @@ def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, t
         if len(list(module.children())) > 0:
             inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules, target_modules=target_modules)
 
-        # target_modules 지정 시 해당 이름의 모듈만 LoRA 적용; 나머지는 그대로 두어 Full FT 유지
+        # target_modules 지정 시 해당 이름의 모듈만 LoRA 적용; 나머지 Linear/Conv2d는 freeze
         if target_modules is not None and name not in target_modules:
+            if isinstance(module, (nn.Linear, nn.Conv2d)):
+                for param in module.parameters():
+                    param.requires_grad = False
             continue
 
         if isinstance(module, nn.Linear):
