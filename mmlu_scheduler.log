@@ -1,0 +1,559 @@
+nohup: ignoring input
+[05:41:52] Starting 7 MMLU experiments across 2 GPUs (GPUs: [0, 1])
+Datasets: ['mmlu']
+Methods: ['FedIT', 'FL+DoRA(FlexLoRA)', 'FL+DoRA(FlexLoRA+FFALoRA)', 'FeDoRA', 'FlexLoRA', 'FFA-LoRA', 'FedEx-LoRA']
+============================================================
+[05:41:52] Checking if GPU 0 VRAM is below 5000 MB...
+[05:41:52] Checking if GPU 1 VRAM is below 5000 MB...
+[05:41:52] Starting 'mmlu_FL+DoRA(FlexLoRA)' on GPU 1...
+
+[05:41:52] Starting 'mmlu_FedIT' on GPU 0...
+
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FedIT|GPU0] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FedIT|GPU0] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 216087.65 examples/s]
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FedIT|GPU0] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 140636.87 examples/s]
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FedIT|GPU0] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 51380.90 examples/s]
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FedIT|GPU0] Generating auxiliary_train split:   9%|▉         | 9000/99842 [00:00<00:01, 81588.19 examples/s]
+[mmlu_FedIT|GPU0] Generating auxiliary_train split:  21%|██        | 21000/99842 [00:00<00:00, 98479.85 examples/s]
+[mmlu_FedIT|GPU0] Generating auxiliary_train split:  33%|███▎      | 33000/99842 [00:00<00:00, 102746.45 examples/s]
+[mmlu_FedIT|GPU0] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 96548.05 examples/s] 
+[mmlu_FedIT|GPU0] Traceback (most recent call last):
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FedIT|GPU0]     writer.write_table(table)
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FedIT|GPU0]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FedIT|GPU0]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FedIT|GPU0]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FedIT|GPU0]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FedIT|GPU0]     return self.f.write(*args, **kwargs)
+[mmlu_FedIT|GPU0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] During handling of the above exception, another exception occurred:
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Traceback (most recent call last):
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FedIT|GPU0]     num_examples, num_bytes = writer.finalize()
+[mmlu_FedIT|GPU0]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FedIT|GPU0]     self.stream.close()
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FedIT|GPU0]     return self.f.close()
+[mmlu_FedIT|GPU0]            ^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] The above exception was the direct cause of the following exception:
+[mmlu_FedIT|GPU0] 
+[mmlu_FedIT|GPU0] Traceback (most recent call last):
+[mmlu_FedIT|GPU0]   File "<string>", line 8, in <module>
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FedIT|GPU0]     builder_instance.download_and_prepare(
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FedIT|GPU0]     self._download_and_prepare(
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FedIT|GPU0]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FedIT|GPU0]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FedIT|GPU0]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FedIT|GPU0] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FedIT|GPU0] terminate called without an active exception
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 202391.79 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 128501.55 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 46710.82 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FedIT|GPU0] Traceback (most recent call last):
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FedIT|GPU0]     main()
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FedIT|GPU0]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FedIT|GPU0]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FedIT|GPU0]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FedIT|GPU0]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FedIT|GPU0]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FedIT|GPU0]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FedIT|GPU0]     _ensure_cached()
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FedIT|GPU0]     _download_split(split, path)
+[mmlu_FedIT|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FedIT|GPU0]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FedIT|GPU0]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FedIT|GPU0]     raise CalledProcessError(retcode, process.args,
+[mmlu_FedIT|GPU0] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating auxiliary_train split:   9%|▉         | 9000/99842 [00:00<00:01, 84629.88 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating auxiliary_train split:  21%|██        | 21000/99842 [00:00<00:00, 100007.05 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating auxiliary_train split:  34%|███▍      | 34000/99842 [00:00<00:00, 106159.87 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 100808.13 examples/s]
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     writer.write_table(table)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     return self.f.write(*args, **kwargs)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] During handling of the above exception, another exception occurred:
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     num_examples, num_bytes = writer.finalize()
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     self.stream.close()
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     return self.f.close()
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]            ^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] The above exception was the direct cause of the following exception:
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "<string>", line 8, in <module>
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     builder_instance.download_and_prepare(
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     self._download_and_prepare(
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] terminate called without an active exception
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     main()
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     _ensure_cached()
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     _download_split(split, path)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FL+DoRA(FlexLoRA)|GPU1]     raise CalledProcessError(retcode, process.args,
+[mmlu_FL+DoRA(FlexLoRA)|GPU1] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[05:42:08] Task 'mmlu_FedIT' failed on GPU 0 with return code 1.
+------------------------------------------------------------
+[05:42:08] Checking if GPU 0 VRAM is below 5000 MB...
+[05:42:08] Starting 'mmlu_FL+DoRA(FlexLoRA+FFALoRA)' on GPU 0...
+
+[05:42:09] Task 'mmlu_FL+DoRA(FlexLoRA)' failed on GPU 1 with return code 1.
+------------------------------------------------------------
+[05:42:09] Checking if GPU 1 VRAM is below 5000 MB...
+[05:42:09] Starting 'mmlu_FeDoRA' on GPU 1...
+
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FeDoRA|GPU1] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 222232.18 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 164455.13 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 65911.81 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating auxiliary_train split:   8%|▊         | 8000/99842 [00:00<00:01, 71074.09 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating auxiliary_train split:  20%|██        | 20000/99842 [00:00<00:00, 92355.56 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating auxiliary_train split:  33%|███▎      | 33000/99842 [00:00<00:00, 102368.47 examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 98688.54 examples/s] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     writer.write_table(table)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     return self.f.write(*args, **kwargs)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] During handling of the above exception, another exception occurred:
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     num_examples, num_bytes = writer.finalize()
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     self.stream.close()
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     return self.f.close()
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]            ^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] The above exception was the direct cause of the following exception:
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "<string>", line 8, in <module>
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     builder_instance.download_and_prepare(
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     self._download_and_prepare(
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] terminate called without an active exception
+[mmlu_FeDoRA|GPU1] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FeDoRA|GPU1] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 235612.06 examples/s]
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FeDoRA|GPU1] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 134046.12 examples/s]
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FeDoRA|GPU1] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 46507.28 examples/s]
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] Traceback (most recent call last):
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     main()
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     _ensure_cached()
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     _download_split(split, path)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0]     raise CalledProcessError(retcode, process.args,
+[mmlu_FL+DoRA(FlexLoRA+FFALoRA)|GPU0] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[mmlu_FeDoRA|GPU1] Generating auxiliary_train split:   8%|▊         | 8000/99842 [00:00<00:01, 74374.35 examples/s]
+[mmlu_FeDoRA|GPU1] Generating auxiliary_train split:  20%|██        | 20000/99842 [00:00<00:00, 93061.38 examples/s]
+[mmlu_FeDoRA|GPU1] Generating auxiliary_train split:  32%|███▏      | 32000/99842 [00:00<00:00, 101303.54 examples/s]
+[mmlu_FeDoRA|GPU1] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 95986.35 examples/s] 
+[mmlu_FeDoRA|GPU1] Traceback (most recent call last):
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FeDoRA|GPU1]     writer.write_table(table)
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FeDoRA|GPU1]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FeDoRA|GPU1]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FeDoRA|GPU1]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FeDoRA|GPU1]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FeDoRA|GPU1]     return self.f.write(*args, **kwargs)
+[mmlu_FeDoRA|GPU1]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] During handling of the above exception, another exception occurred:
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] Traceback (most recent call last):
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FeDoRA|GPU1]     num_examples, num_bytes = writer.finalize()
+[mmlu_FeDoRA|GPU1]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FeDoRA|GPU1]     self.stream.close()
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FeDoRA|GPU1]     return self.f.close()
+[mmlu_FeDoRA|GPU1]            ^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] The above exception was the direct cause of the following exception:
+[mmlu_FeDoRA|GPU1] 
+[mmlu_FeDoRA|GPU1] Traceback (most recent call last):
+[mmlu_FeDoRA|GPU1]   File "<string>", line 8, in <module>
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FeDoRA|GPU1]     builder_instance.download_and_prepare(
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FeDoRA|GPU1]     self._download_and_prepare(
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FeDoRA|GPU1]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FeDoRA|GPU1]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FeDoRA|GPU1]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FeDoRA|GPU1] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FeDoRA|GPU1] terminate called without an active exception
+[mmlu_FeDoRA|GPU1] Traceback (most recent call last):
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FeDoRA|GPU1]     main()
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FeDoRA|GPU1]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FeDoRA|GPU1]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FeDoRA|GPU1]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FeDoRA|GPU1]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FeDoRA|GPU1]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FeDoRA|GPU1]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FeDoRA|GPU1]     _ensure_cached()
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FeDoRA|GPU1]     _download_split(split, path)
+[mmlu_FeDoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FeDoRA|GPU1]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FeDoRA|GPU1]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FeDoRA|GPU1]     raise CalledProcessError(retcode, process.args,
+[mmlu_FeDoRA|GPU1] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[05:42:19] Task 'mmlu_FL+DoRA(FlexLoRA+FFALoRA)' failed on GPU 0 with return code 1.
+------------------------------------------------------------
+[05:42:19] Checking if GPU 0 VRAM is below 5000 MB...
+[05:42:19] Starting 'mmlu_FlexLoRA' on GPU 0...
+
+[05:42:19] Task 'mmlu_FeDoRA' failed on GPU 1 with return code 1.
+------------------------------------------------------------
+[05:42:19] Checking if GPU 1 VRAM is below 5000 MB...
+[05:42:19] Starting 'mmlu_FFA-LoRA' on GPU 1...
+
+[mmlu_FlexLoRA|GPU0] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FFA-LoRA|GPU1] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FlexLoRA|GPU0] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 226109.86 examples/s]
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FlexLoRA|GPU0] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 124062.59 examples/s]
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FlexLoRA|GPU0] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 49765.89 examples/s]
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FlexLoRA|GPU0] Generating auxiliary_train split:   8%|▊         | 8000/99842 [00:00<00:01, 76155.88 examples/s]
+[mmlu_FlexLoRA|GPU0] Generating auxiliary_train split:  21%|██        | 21000/99842 [00:00<00:00, 100252.15 examples/s]
+[mmlu_FlexLoRA|GPU0] Generating auxiliary_train split:  34%|███▍      | 34000/99842 [00:00<00:00, 109162.66 examples/s]
+[mmlu_FlexLoRA|GPU0] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 103837.21 examples/s]
+[mmlu_FlexLoRA|GPU0] Traceback (most recent call last):
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FlexLoRA|GPU0]     writer.write_table(table)
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FlexLoRA|GPU0]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FlexLoRA|GPU0]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FlexLoRA|GPU0]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FlexLoRA|GPU0]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FlexLoRA|GPU0]     return self.f.write(*args, **kwargs)
+[mmlu_FlexLoRA|GPU0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] During handling of the above exception, another exception occurred:
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Traceback (most recent call last):
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FlexLoRA|GPU0]     num_examples, num_bytes = writer.finalize()
+[mmlu_FlexLoRA|GPU0]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FlexLoRA|GPU0]     self.stream.close()
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FlexLoRA|GPU0]     return self.f.close()
+[mmlu_FlexLoRA|GPU0]            ^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] The above exception was the direct cause of the following exception:
+[mmlu_FlexLoRA|GPU0] 
+[mmlu_FlexLoRA|GPU0] Traceback (most recent call last):
+[mmlu_FlexLoRA|GPU0]   File "<string>", line 8, in <module>
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FlexLoRA|GPU0]     builder_instance.download_and_prepare(
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FlexLoRA|GPU0]     self._download_and_prepare(
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FlexLoRA|GPU0]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FlexLoRA|GPU0]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FlexLoRA|GPU0]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FlexLoRA|GPU0] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 206736.79 examples/s]
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 126776.42 examples/s]
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 51988.72 examples/s]
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FlexLoRA|GPU0] terminate called without an active exception
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FlexLoRA|GPU0] Traceback (most recent call last):
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FlexLoRA|GPU0]     main()
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FlexLoRA|GPU0]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FlexLoRA|GPU0]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FlexLoRA|GPU0]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FlexLoRA|GPU0]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FlexLoRA|GPU0]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FlexLoRA|GPU0]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FlexLoRA|GPU0]     _ensure_cached()
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FlexLoRA|GPU0]     _download_split(split, path)
+[mmlu_FlexLoRA|GPU0]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FlexLoRA|GPU0]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FlexLoRA|GPU0]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FlexLoRA|GPU0]     raise CalledProcessError(retcode, process.args,
+[mmlu_FlexLoRA|GPU0] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:   8%|▊         | 8000/99842 [00:00<00:01, 72545.57 examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:  19%|█▉        | 19000/99842 [00:00<00:00, 88663.52 examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:  29%|██▉       | 29000/99842 [00:00<00:00, 91726.25 examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 98076.13 examples/s]
+[mmlu_FFA-LoRA|GPU1] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 92099.27 examples/s]
+[mmlu_FFA-LoRA|GPU1] Traceback (most recent call last):
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FFA-LoRA|GPU1]     writer.write_table(table)
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FFA-LoRA|GPU1]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FFA-LoRA|GPU1]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FFA-LoRA|GPU1]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FFA-LoRA|GPU1]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FFA-LoRA|GPU1]     return self.f.write(*args, **kwargs)
+[mmlu_FFA-LoRA|GPU1]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] During handling of the above exception, another exception occurred:
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] Traceback (most recent call last):
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FFA-LoRA|GPU1]     num_examples, num_bytes = writer.finalize()
+[mmlu_FFA-LoRA|GPU1]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FFA-LoRA|GPU1]     self.stream.close()
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FFA-LoRA|GPU1]     return self.f.close()
+[mmlu_FFA-LoRA|GPU1]            ^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1] OSError: [Errno 28] No space left on device
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] The above exception was the direct cause of the following exception:
+[mmlu_FFA-LoRA|GPU1] 
+[mmlu_FFA-LoRA|GPU1] Traceback (most recent call last):
+[mmlu_FFA-LoRA|GPU1]   File "<string>", line 8, in <module>
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/load.py", line 1708, in load_dataset
+[mmlu_FFA-LoRA|GPU1]     builder_instance.download_and_prepare(
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 882, in download_and_prepare
+[mmlu_FFA-LoRA|GPU1]     self._download_and_prepare(
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 943, in _download_and_prepare
+[mmlu_FFA-LoRA|GPU1]     self._prepare_split(split_generator, **prepare_split_kwargs)
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1646, in _prepare_split
+[mmlu_FFA-LoRA|GPU1]     for job_id, done, content in self._prepare_split_single(
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1832, in _prepare_split_single
+[mmlu_FFA-LoRA|GPU1]     raise DatasetGenerationError("An error occurred while generating the dataset") from e
+[mmlu_FFA-LoRA|GPU1] datasets.exceptions.DatasetGenerationError: An error occurred while generating the dataset
+[mmlu_FFA-LoRA|GPU1] terminate called without an active exception
+[mmlu_FFA-LoRA|GPU1] Traceback (most recent call last):
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 546, in <module>
+[mmlu_FFA-LoRA|GPU1]     main()
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/main.py", line 176, in main
+[mmlu_FFA-LoRA|GPU1]     client_dataloaders, client_test_dataloaders, client_finetune_train) = prepare_data_for_training(args, logger)
+[mmlu_FFA-LoRA|GPU1]                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 464, in prepare_data_for_training
+[mmlu_FFA-LoRA|GPU1]     global_train_dataset, global_val_dataset, global_test_dataset = get_global_dataset(
+[mmlu_FFA-LoRA|GPU1]                                                                     ^^^^^^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/utils.py", line 96, in get_global_dataset
+[mmlu_FFA-LoRA|GPU1]     train_ds = MMLUDataset(train=True, model_name=model_name, max_length=128)
+[mmlu_FFA-LoRA|GPU1]                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 64, in __init__
+[mmlu_FFA-LoRA|GPU1]     _ensure_cached()
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 56, in _ensure_cached
+[mmlu_FFA-LoRA|GPU1]     _download_split(split, path)
+[mmlu_FFA-LoRA|GPU1]   File "/home/hbkim/python/research-feddora/feddora_share/datasets/mmlu.py", line 49, in _download_split
+[mmlu_FFA-LoRA|GPU1]     subprocess.run([sys.executable, '-c', script], check=True)
+[mmlu_FFA-LoRA|GPU1]   File "/home/hmkang/python/python-3.11.7/lib/python3.11/subprocess.py", line 571, in run
+[mmlu_FFA-LoRA|GPU1]     raise CalledProcessError(retcode, process.args,
+[mmlu_FFA-LoRA|GPU1] subprocess.CalledProcessError: Command '['/home/hmkang/python/venv3.11.7/project/bin/python3', '-c', '\nimport sys\n# Strip the project root so the local datasets/ package doesn\'t shadow HF datasets.\nsys.path = [p for p in sys.path if p != \'\' and \'/feddora\' not in p]\nfrom datasets import load_dataset\nimport csv, os\n\nraw = load_dataset("cais/mmlu", "all", split=\'auxiliary_train\')\nout = \'/home/hbkim/python/research-feddora/feddora_share/datasets/../data/mmlu/train.csv\'\nos.makedirs(os.path.dirname(out), exist_ok=True)\nwith open(out, \'w\', newline=\'\', encoding=\'utf-8\') as f:\n    writer = csv.writer(f)\n    for item in raw:\n        question = item[\'question\']\n        choices = item[\'choices\']\n        answer = item[\'answer\']\n\n        # Combine question and choices into a single string\n        text = f"{question} \\n (A) {choices[0]} \\n (B) {choices[1]} \\n (C) {choices[2]} \\n (D) {choices[3]}"\n\n        writer.writerow([text, answer])\n\nprint(f"Saved MMLU {out}")\n']' died with <Signals.SIGABRT: 6>.
+[05:42:29] Task 'mmlu_FlexLoRA' failed on GPU 0 with return code 1.
+------------------------------------------------------------
+[05:42:29] Checking if GPU 0 VRAM is below 5000 MB...
+[05:42:29] Starting 'mmlu_FedEx-LoRA' on GPU 0...
+
+[05:42:30] Task 'mmlu_FFA-LoRA' failed on GPU 1 with return code 1.
+------------------------------------------------------------
+[mmlu_FedEx-LoRA|GPU0] Downloading MMLU train (using auxiliary_train) ...
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] Generating test split:   0%|          | 0/14042 [00:00<?, ? examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating test split: 100%|██████████| 14042/14042 [00:00<00:00, 218454.47 examples/s]
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] Generating validation split:   0%|          | 0/1531 [00:00<?, ? examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating validation split: 100%|██████████| 1531/1531 [00:00<00:00, 133416.70 examples/s]
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] Generating dev split:   0%|          | 0/285 [00:00<?, ? examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating dev split: 100%|██████████| 285/285 [00:00<00:00, 45628.55 examples/s]
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] Generating auxiliary_train split:   0%|          | 0/99842 [00:00<?, ? examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating auxiliary_train split:   8%|▊         | 8000/99842 [00:00<00:01, 70444.26 examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating auxiliary_train split:  20%|██        | 20000/99842 [00:00<00:00, 90311.08 examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating auxiliary_train split:  31%|███       | 31000/99842 [00:00<00:00, 93712.11 examples/s]
+[mmlu_FedEx-LoRA|GPU0] Generating auxiliary_train split:  41%|████      | 41000/99842 [00:00<00:00, 93080.63 examples/s]
+[mmlu_FedEx-LoRA|GPU0] Traceback (most recent call last):
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1800, in _prepare_split_single
+[mmlu_FedEx-LoRA|GPU0]     writer.write_table(table)
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 765, in write_table
+[mmlu_FedEx-LoRA|GPU0]     self._write_table(pa_table, writer_batch_size=writer_batch_size)
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 778, in _write_table
+[mmlu_FedEx-LoRA|GPU0]     self.pa_writer.write_table(pa_table, writer_batch_size)
+[mmlu_FedEx-LoRA|GPU0]   File "pyarrow/ipc.pxi", line 616, in pyarrow.lib._CRecordBatchWriter.write_table
+[mmlu_FedEx-LoRA|GPU0]   File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 473, in write
+[mmlu_FedEx-LoRA|GPU0]     return self.f.write(*args, **kwargs)
+[mmlu_FedEx-LoRA|GPU0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mmlu_FedEx-LoRA|GPU0] OSError: [Errno 28] No space left on device
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] During handling of the above exception, another exception occurred:
+[mmlu_FedEx-LoRA|GPU0] 
+[mmlu_FedEx-LoRA|GPU0] Traceback (most recent call last):
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/builder.py", line 1821, in _prepare_split_single
+[mmlu_FedEx-LoRA|GPU0]     num_examples, num_bytes = writer.finalize()
+[mmlu_FedEx-LoRA|GPU0]                               ^^^^^^^^^^^^^^^^^
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/datasets/arrow_writer.py", line 791, in finalize
+[mmlu_FedEx-LoRA|GPU0]     self.stream.close()
+[mmlu_FedEx-LoRA|GPU0]   File "/home/hmkang/python/venv3.11.7/project/lib/python3.11/site-packages/fsspec/implementations/local.py", line 491, in close
+[mmlu_FedEx-LoRA|GPU0]     return self.f.close()
