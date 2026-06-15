@@ -65,3 +65,67 @@ Seeds: [42]
 [cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:00 At round: 1, avg_loss: 0.7387, within_variance: 1900121.0, between_variance: 1598491.75
 [cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:01 At round: 1, avg_loss: 2.2649, within_variance: 631716.375, between_variance: 238246.640625
 [cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:01 At round: 1, avg_loss: 0.6914, within_variance: 1898059.25, between_variance: 1684670.75
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:02 At round: 1, avg_loss: 1.9430, within_variance: 621359.6875, between_variance: 289119.71875
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:02 At round: 1, avg_loss: 0.7277, within_variance: 1706508.25, between_variance: 1604714.75
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] train time: 172.23126482963562
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:02 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:02 ROUND 1
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:02 --- MEAN_LOCAL_ACC = 0.4764
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:02 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] train time: 178.07372736930847
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 --- MEAN_LOCAL_ACC = 0.8387
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.0.attn.qkv] res_norm=0.372588, rec_norm=0.372525, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.1.attn.qkv] res_norm=0.366201, rec_norm=0.365991, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.2.attn.qkv] res_norm=0.310088, rec_norm=0.309369, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.3.attn.qkv] res_norm=0.304563, rec_norm=0.303516, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.4.attn.qkv] res_norm=0.283770, rec_norm=0.282254, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.5.attn.qkv] res_norm=0.309963, rec_norm=0.308521, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.6.attn.qkv] res_norm=0.314999, rec_norm=0.313481, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.7.attn.qkv] res_norm=0.286666, rec_norm=0.284757, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.8.attn.qkv] res_norm=0.246028, rec_norm=0.241845, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.9.attn.qkv] res_norm=0.363254, rec_norm=0.362314, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.10.attn.qkv] res_norm=0.338805, rec_norm=0.337762, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 ROUND 1 FedEx-LoRA [vit.blocks.11.attn.qkv] res_norm=0.273743, rec_norm=0.272875, svd_r=32
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:03 >> Global Model Test accuracy: 0.7927
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:03 round:2
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:03 At round: 2, avg_loss: 1.9379, within_variance: 408753.5625, between_variance: 186147.75
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 >> Global Model Test accuracy: 0.8747
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:03 round:2
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:04 At round: 2, avg_loss: 0.5519, within_variance: 1595615.25, between_variance: 1455299.5
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:04 At round: 2, avg_loss: 1.9610, within_variance: 440373.25, between_variance: 207323.828125
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:05 At round: 2, avg_loss: 0.5752, within_variance: 1590878.125, between_variance: 1467330.25
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:05 At round: 2, avg_loss: 1.9142, within_variance: 386064.25, between_variance: 189223.3125
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 At round: 2, avg_loss: 0.5919, within_variance: 1749368.75, between_variance: 1508532.75
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] train time: 171.84581851959229
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:06 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:06 ROUND 2
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:06 --- MEAN_LOCAL_ACC = 0.5107
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:06 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] train time: 177.84393763542175
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 --- MEAN_LOCAL_ACC = 0.8487
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ----------------------------------------------------------------------
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.0.attn.qkv] res_norm=0.387747, rec_norm=0.387692, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.1.attn.qkv] res_norm=0.299147, rec_norm=0.298779, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.2.attn.qkv] res_norm=0.299215, rec_norm=0.298169, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.3.attn.qkv] res_norm=0.327699, rec_norm=0.326488, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.4.attn.qkv] res_norm=0.294693, rec_norm=0.292940, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.5.attn.qkv] res_norm=0.326687, rec_norm=0.325437, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.6.attn.qkv] res_norm=0.289756, rec_norm=0.287610, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.7.attn.qkv] res_norm=0.271482, rec_norm=0.268746, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.8.attn.qkv] res_norm=0.241586, rec_norm=0.236521, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.9.attn.qkv] res_norm=0.336085, rec_norm=0.334436, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.10.attn.qkv] res_norm=0.293734, rec_norm=0.291794, svd_r=32
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:06 ROUND 2 FedEx-LoRA [vit.blocks.11.attn.qkv] res_norm=0.263341, rec_norm=0.261933, svd_r=32
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:07 >> Global Model Test accuracy: 0.8190
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:07 round:3
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:07 At round: 3, avg_loss: 1.8009, within_variance: 312884.375, between_variance: 159573.625
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:07 >> Global Model Test accuracy: 0.8889
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:07 round:3
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:07 At round: 3, avg_loss: 0.5550, within_variance: 1582238.25, between_variance: 1373313.25
+[cifar100_20c_iid_lower_FedIT_seed42|GPU0] 06-15 02:08 At round: 3, avg_loss: 1.8385, within_variance: 302485.5, between_variance: 148090.9375
+[cifar100_20c_iid_lower_FedEx-LoRA_seed42|GPU1] 06-15 02:08 At round: 3, avg_loss: 0.5480, within_variance: 1495658.375, between_variance: 1297516.75
