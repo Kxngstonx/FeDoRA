@@ -1,0 +1,148 @@
+[04:56:12] FeDoRA CIFAR-100 grid: 72 runs (lr×4, alpha×3, dora_m_lr×3 × 2 partitions), 30 rounds, GPUs=[0, 1]
+  python=/home/hbkim/Python-3.11.0/venv3.11.7/dxfl/bin/python
+  queued 72 (skipped 0 done)
+[04:56:12] START 'fedora_cifar100_20c_iid_lr5em4_a16_mlr1em3_r32_R30_seed42' on GPU 1
+[04:56:12] START 'fedora_cifar100_20c_iid_lr5em4_a16_mlrsame_r32_R30_seed42' on GPU 0
+[06:38:49] DONE 'fedora_cifar100_20c_iid_lr5em4_a16_mlrsame_r32_R30_seed42' [OK]
+[06:38:49] START 'fedora_cifar100_20c_iid_lr5em4_a16_mlr1em4_r32_R30_seed42' on GPU 0
+[06:43:33] DONE 'fedora_cifar100_20c_iid_lr5em4_a16_mlr1em3_r32_R30_seed42' [OK]
+[06:43:33] START 'fedora_cifar100_20c_iid_lr5em4_a32_mlrsame_r32_R30_seed42' on GPU 1
+[08:22:27] DONE 'fedora_cifar100_20c_iid_lr5em4_a16_mlr1em4_r32_R30_seed42' [OK]
+[08:22:27] START 'fedora_cifar100_20c_iid_lr5em4_a32_mlr1em3_r32_R30_seed42' on GPU 0
+[08:32:38] DONE 'fedora_cifar100_20c_iid_lr5em4_a32_mlrsame_r32_R30_seed42' [OK]
+[08:32:38] START 'fedora_cifar100_20c_iid_lr5em4_a32_mlr1em4_r32_R30_seed42' on GPU 1
+[10:05:28] DONE 'fedora_cifar100_20c_iid_lr5em4_a32_mlr1em3_r32_R30_seed42' [OK]
+[10:05:28] START 'fedora_cifar100_20c_iid_lr5em4_a64_mlrsame_r32_R30_seed42' on GPU 0
+[10:20:14] DONE 'fedora_cifar100_20c_iid_lr5em4_a32_mlr1em4_r32_R30_seed42' [OK]
+[10:20:14] START 'fedora_cifar100_20c_iid_lr5em4_a64_mlr1em3_r32_R30_seed42' on GPU 1
+[11:46:34] DONE 'fedora_cifar100_20c_iid_lr5em4_a64_mlrsame_r32_R30_seed42' [OK]
+[11:46:34] START 'fedora_cifar100_20c_iid_lr5em4_a64_mlr1em4_r32_R30_seed42' on GPU 0
+[12:05:35] DONE 'fedora_cifar100_20c_iid_lr5em4_a64_mlr1em3_r32_R30_seed42' [OK]
+[12:05:35] START 'fedora_cifar100_20c_iid_lr1em3_a16_mlrsame_r32_R30_seed42' on GPU 1
+[13:26:59] DONE 'fedora_cifar100_20c_iid_lr5em4_a64_mlr1em4_r32_R30_seed42' [OK]
+[13:26:59] START 'fedora_cifar100_20c_iid_lr1em3_a16_mlr1em3_r32_R30_seed42' on GPU 0
+[13:49:17] DONE 'fedora_cifar100_20c_iid_lr1em3_a16_mlrsame_r32_R30_seed42' [OK]
+[13:49:17] START 'fedora_cifar100_20c_iid_lr1em3_a16_mlr1em4_r32_R30_seed42' on GPU 1
+[15:07:34] DONE 'fedora_cifar100_20c_iid_lr1em3_a16_mlr1em3_r32_R30_seed42' [OK]
+[15:07:34] START 'fedora_cifar100_20c_iid_lr1em3_a32_mlrsame_r32_R30_seed42' on GPU 0
+[15:34:13] DONE 'fedora_cifar100_20c_iid_lr1em3_a16_mlr1em4_r32_R30_seed42' [OK]
+[15:34:13] START 'fedora_cifar100_20c_iid_lr1em3_a32_mlr1em3_r32_R30_seed42' on GPU 1
+[16:48:53] DONE 'fedora_cifar100_20c_iid_lr1em3_a32_mlrsame_r32_R30_seed42' [OK]
+[16:48:53] START 'fedora_cifar100_20c_iid_lr1em3_a32_mlr1em4_r32_R30_seed42' on GPU 0
+[17:19:59] DONE 'fedora_cifar100_20c_iid_lr1em3_a32_mlr1em3_r32_R30_seed42' [OK]
+[17:19:59] START 'fedora_cifar100_20c_iid_lr1em3_a64_mlrsame_r32_R30_seed42' on GPU 1
+[18:30:10] DONE 'fedora_cifar100_20c_iid_lr1em3_a32_mlr1em4_r32_R30_seed42' [OK]
+[18:30:10] START 'fedora_cifar100_20c_iid_lr1em3_a64_mlr1em3_r32_R30_seed42' on GPU 0
+[19:05:22] DONE 'fedora_cifar100_20c_iid_lr1em3_a64_mlrsame_r32_R30_seed42' [OK]
+[19:05:22] START 'fedora_cifar100_20c_iid_lr1em3_a64_mlr1em4_r32_R30_seed42' on GPU 1
+[20:10:47] DONE 'fedora_cifar100_20c_iid_lr1em3_a64_mlr1em3_r32_R30_seed42' [OK]
+[20:10:47] START 'fedora_cifar100_20c_iid_lr5em3_a16_mlrsame_r32_R30_seed42' on GPU 0
+[20:49:10] DONE 'fedora_cifar100_20c_iid_lr1em3_a64_mlr1em4_r32_R30_seed42' [OK]
+[20:49:10] START 'fedora_cifar100_20c_iid_lr5em3_a16_mlr1em3_r32_R30_seed42' on GPU 1
+[21:50:52] DONE 'fedora_cifar100_20c_iid_lr5em3_a16_mlrsame_r32_R30_seed42' [OK]
+[21:50:52] START 'fedora_cifar100_20c_iid_lr5em3_a16_mlr1em4_r32_R30_seed42' on GPU 0
+[22:32:36] DONE 'fedora_cifar100_20c_iid_lr5em3_a16_mlr1em3_r32_R30_seed42' [OK]
+[22:32:36] START 'fedora_cifar100_20c_iid_lr5em3_a32_mlrsame_r32_R30_seed42' on GPU 1
+[23:31:18] DONE 'fedora_cifar100_20c_iid_lr5em3_a16_mlr1em4_r32_R30_seed42' [OK]
+[23:31:18] START 'fedora_cifar100_20c_iid_lr5em3_a32_mlr1em3_r32_R30_seed42' on GPU 0
+[00:16:22] DONE 'fedora_cifar100_20c_iid_lr5em3_a32_mlrsame_r32_R30_seed42' [OK]
+[00:16:22] START 'fedora_cifar100_20c_iid_lr5em3_a32_mlr1em4_r32_R30_seed42' on GPU 1
+[01:11:37] DONE 'fedora_cifar100_20c_iid_lr5em3_a32_mlr1em3_r32_R30_seed42' [OK]
+[01:11:37] START 'fedora_cifar100_20c_iid_lr5em3_a64_mlrsame_r32_R30_seed42' on GPU 0
+[01:59:49] DONE 'fedora_cifar100_20c_iid_lr5em3_a32_mlr1em4_r32_R30_seed42' [OK]
+[01:59:49] START 'fedora_cifar100_20c_iid_lr5em3_a64_mlr1em3_r32_R30_seed42' on GPU 1
+[02:51:43] DONE 'fedora_cifar100_20c_iid_lr5em3_a64_mlrsame_r32_R30_seed42' [OK]
+[02:51:43] START 'fedora_cifar100_20c_iid_lr5em3_a64_mlr1em4_r32_R30_seed42' on GPU 0
+[03:43:04] DONE 'fedora_cifar100_20c_iid_lr5em3_a64_mlr1em3_r32_R30_seed42' [OK]
+[03:43:04] START 'fedora_cifar100_20c_iid_lr1em2_a16_mlrsame_r32_R30_seed42' on GPU 1
+[04:32:00] DONE 'fedora_cifar100_20c_iid_lr5em3_a64_mlr1em4_r32_R30_seed42' [OK]
+[04:32:00] START 'fedora_cifar100_20c_iid_lr1em2_a16_mlr1em3_r32_R30_seed42' on GPU 0
+[05:26:31] DONE 'fedora_cifar100_20c_iid_lr1em2_a16_mlrsame_r32_R30_seed42' [OK]
+[05:26:31] START 'fedora_cifar100_20c_iid_lr1em2_a16_mlr1em4_r32_R30_seed42' on GPU 1
+[06:12:08] DONE 'fedora_cifar100_20c_iid_lr1em2_a16_mlr1em3_r32_R30_seed42' [OK]
+[06:12:08] START 'fedora_cifar100_20c_iid_lr1em2_a32_mlrsame_r32_R30_seed42' on GPU 0
+[07:10:32] DONE 'fedora_cifar100_20c_iid_lr1em2_a16_mlr1em4_r32_R30_seed42' [OK]
+[07:10:32] START 'fedora_cifar100_20c_iid_lr1em2_a32_mlr1em3_r32_R30_seed42' on GPU 1
+[07:52:37] DONE 'fedora_cifar100_20c_iid_lr1em2_a32_mlrsame_r32_R30_seed42' [OK]
+[07:52:37] START 'fedora_cifar100_20c_iid_lr1em2_a32_mlr1em4_r32_R30_seed42' on GPU 0
+[08:54:30] DONE 'fedora_cifar100_20c_iid_lr1em2_a32_mlr1em3_r32_R30_seed42' [OK]
+[08:54:30] START 'fedora_cifar100_20c_iid_lr1em2_a64_mlrsame_r32_R30_seed42' on GPU 1
+[09:33:05] DONE 'fedora_cifar100_20c_iid_lr1em2_a32_mlr1em4_r32_R30_seed42' [OK]
+[09:33:05] START 'fedora_cifar100_20c_iid_lr1em2_a64_mlr1em3_r32_R30_seed42' on GPU 0
+[10:38:55] DONE 'fedora_cifar100_20c_iid_lr1em2_a64_mlrsame_r32_R30_seed42' [OK]
+[10:38:55] START 'fedora_cifar100_20c_iid_lr1em2_a64_mlr1em4_r32_R30_seed42' on GPU 1
+[11:13:45] DONE 'fedora_cifar100_20c_iid_lr1em2_a64_mlr1em3_r32_R30_seed42' [OK]
+[11:13:45] START 'fedora_cifar100_20c_noniid_lr5em4_a16_mlrsame_r32_R30_seed42' on GPU 0
+[12:22:25] DONE 'fedora_cifar100_20c_iid_lr1em2_a64_mlr1em4_r32_R30_seed42' [OK]
+[12:22:26] START 'fedora_cifar100_20c_noniid_lr5em4_a16_mlr1em3_r32_R30_seed42' on GPU 1
+[12:42:06] DONE 'fedora_cifar100_20c_noniid_lr5em4_a16_mlrsame_r32_R30_seed42' [OK]
+[12:42:06] START 'fedora_cifar100_20c_noniid_lr5em4_a16_mlr1em4_r32_R30_seed42' on GPU 0
+[13:52:33] DONE 'fedora_cifar100_20c_noniid_lr5em4_a16_mlr1em3_r32_R30_seed42' [OK]
+[13:52:33] START 'fedora_cifar100_20c_noniid_lr5em4_a32_mlrsame_r32_R30_seed42' on GPU 1
+[14:09:43] DONE 'fedora_cifar100_20c_noniid_lr5em4_a16_mlr1em4_r32_R30_seed42' [OK]
+[14:09:43] START 'fedora_cifar100_20c_noniid_lr5em4_a32_mlr1em3_r32_R30_seed42' on GPU 0
+[15:22:45] DONE 'fedora_cifar100_20c_noniid_lr5em4_a32_mlrsame_r32_R30_seed42' [OK]
+[15:22:45] START 'fedora_cifar100_20c_noniid_lr5em4_a32_mlr1em4_r32_R30_seed42' on GPU 1
+[15:37:43] DONE 'fedora_cifar100_20c_noniid_lr5em4_a32_mlr1em3_r32_R30_seed42' [OK]
+[15:37:43] START 'fedora_cifar100_20c_noniid_lr5em4_a64_mlrsame_r32_R30_seed42' on GPU 0
+[16:53:00] DONE 'fedora_cifar100_20c_noniid_lr5em4_a32_mlr1em4_r32_R30_seed42' [OK]
+[16:53:00] START 'fedora_cifar100_20c_noniid_lr5em4_a64_mlr1em3_r32_R30_seed42' on GPU 1
+[17:05:20] DONE 'fedora_cifar100_20c_noniid_lr5em4_a64_mlrsame_r32_R30_seed42' [OK]
+[17:05:20] START 'fedora_cifar100_20c_noniid_lr5em4_a64_mlr1em4_r32_R30_seed42' on GPU 0
+[18:23:23] DONE 'fedora_cifar100_20c_noniid_lr5em4_a64_mlr1em3_r32_R30_seed42' [OK]
+[18:23:23] START 'fedora_cifar100_20c_noniid_lr1em3_a16_mlrsame_r32_R30_seed42' on GPU 1
+[18:33:22] DONE 'fedora_cifar100_20c_noniid_lr5em4_a64_mlr1em4_r32_R30_seed42' [OK]
+[18:33:22] START 'fedora_cifar100_20c_noniid_lr1em3_a16_mlr1em3_r32_R30_seed42' on GPU 0
+[19:54:16] DONE 'fedora_cifar100_20c_noniid_lr1em3_a16_mlrsame_r32_R30_seed42' [OK]
+[19:54:16] START 'fedora_cifar100_20c_noniid_lr1em3_a16_mlr1em4_r32_R30_seed42' on GPU 1
+[20:01:24] DONE 'fedora_cifar100_20c_noniid_lr1em3_a16_mlr1em3_r32_R30_seed42' [OK]
+[20:01:24] START 'fedora_cifar100_20c_noniid_lr1em3_a32_mlrsame_r32_R30_seed42' on GPU 0
+[21:25:18] DONE 'fedora_cifar100_20c_noniid_lr1em3_a16_mlr1em4_r32_R30_seed42' [OK]
+[21:25:18] START 'fedora_cifar100_20c_noniid_lr1em3_a32_mlr1em3_r32_R30_seed42' on GPU 1
+[21:29:33] DONE 'fedora_cifar100_20c_noniid_lr1em3_a32_mlrsame_r32_R30_seed42' [OK]
+[21:29:33] START 'fedora_cifar100_20c_noniid_lr1em3_a32_mlr1em4_r32_R30_seed42' on GPU 0
+[22:56:26] DONE 'fedora_cifar100_20c_noniid_lr1em3_a32_mlr1em3_r32_R30_seed42' [OK]
+[22:56:26] START 'fedora_cifar100_20c_noniid_lr1em3_a64_mlrsame_r32_R30_seed42' on GPU 1
+[22:57:43] DONE 'fedora_cifar100_20c_noniid_lr1em3_a32_mlr1em4_r32_R30_seed42' [OK]
+[22:57:43] START 'fedora_cifar100_20c_noniid_lr1em3_a64_mlr1em3_r32_R30_seed42' on GPU 0
+[00:25:54] DONE 'fedora_cifar100_20c_noniid_lr1em3_a64_mlr1em3_r32_R30_seed42' [OK]
+[00:25:54] START 'fedora_cifar100_20c_noniid_lr1em3_a64_mlr1em4_r32_R30_seed42' on GPU 0
+[00:27:28] DONE 'fedora_cifar100_20c_noniid_lr1em3_a64_mlrsame_r32_R30_seed42' [OK]
+[00:27:28] START 'fedora_cifar100_20c_noniid_lr5em3_a16_mlrsame_r32_R30_seed42' on GPU 1
+[01:53:51] DONE 'fedora_cifar100_20c_noniid_lr1em3_a64_mlr1em4_r32_R30_seed42' [OK]
+[01:53:51] START 'fedora_cifar100_20c_noniid_lr5em3_a16_mlr1em3_r32_R30_seed42' on GPU 0
+[01:58:16] DONE 'fedora_cifar100_20c_noniid_lr5em3_a16_mlrsame_r32_R30_seed42' [OK]
+[01:58:16] START 'fedora_cifar100_20c_noniid_lr5em3_a16_mlr1em4_r32_R30_seed42' on GPU 1
+[03:21:50] DONE 'fedora_cifar100_20c_noniid_lr5em3_a16_mlr1em3_r32_R30_seed42' [OK]
+[03:21:51] START 'fedora_cifar100_20c_noniid_lr5em3_a32_mlrsame_r32_R30_seed42' on GPU 0
+[03:28:52] DONE 'fedora_cifar100_20c_noniid_lr5em3_a16_mlr1em4_r32_R30_seed42' [OK]
+[03:28:52] START 'fedora_cifar100_20c_noniid_lr5em3_a32_mlr1em3_r32_R30_seed42' on GPU 1
+[04:50:02] DONE 'fedora_cifar100_20c_noniid_lr5em3_a32_mlrsame_r32_R30_seed42' [OK]
+[04:50:02] START 'fedora_cifar100_20c_noniid_lr5em3_a32_mlr1em4_r32_R30_seed42' on GPU 0
+[04:59:50] DONE 'fedora_cifar100_20c_noniid_lr5em3_a32_mlr1em3_r32_R30_seed42' [OK]
+[04:59:50] START 'fedora_cifar100_20c_noniid_lr5em3_a64_mlrsame_r32_R30_seed42' on GPU 1
+[06:18:30] DONE 'fedora_cifar100_20c_noniid_lr5em3_a32_mlr1em4_r32_R30_seed42' [OK]
+[06:18:30] START 'fedora_cifar100_20c_noniid_lr5em3_a64_mlr1em3_r32_R30_seed42' on GPU 0
+[06:31:10] DONE 'fedora_cifar100_20c_noniid_lr5em3_a64_mlrsame_r32_R30_seed42' [OK]
+[06:31:10] START 'fedora_cifar100_20c_noniid_lr5em3_a64_mlr1em4_r32_R30_seed42' on GPU 1
+[07:46:45] DONE 'fedora_cifar100_20c_noniid_lr5em3_a64_mlr1em3_r32_R30_seed42' [OK]
+[07:46:45] START 'fedora_cifar100_20c_noniid_lr1em2_a16_mlrsame_r32_R30_seed42' on GPU 0
+[08:02:42] DONE 'fedora_cifar100_20c_noniid_lr5em3_a64_mlr1em4_r32_R30_seed42' [OK]
+[08:02:42] START 'fedora_cifar100_20c_noniid_lr1em2_a16_mlr1em3_r32_R30_seed42' on GPU 1
+[09:15:29] DONE 'fedora_cifar100_20c_noniid_lr1em2_a16_mlrsame_r32_R30_seed42' [OK]
+[09:15:29] START 'fedora_cifar100_20c_noniid_lr1em2_a16_mlr1em4_r32_R30_seed42' on GPU 0
+[09:34:15] DONE 'fedora_cifar100_20c_noniid_lr1em2_a16_mlr1em3_r32_R30_seed42' [OK]
+[09:34:16] START 'fedora_cifar100_20c_noniid_lr1em2_a32_mlrsame_r32_R30_seed42' on GPU 1
+[10:44:16] DONE 'fedora_cifar100_20c_noniid_lr1em2_a16_mlr1em4_r32_R30_seed42' [OK]
+[10:44:16] START 'fedora_cifar100_20c_noniid_lr1em2_a32_mlr1em3_r32_R30_seed42' on GPU 0
+[11:06:32] DONE 'fedora_cifar100_20c_noniid_lr1em2_a32_mlrsame_r32_R30_seed42' [OK]
+[11:06:32] START 'fedora_cifar100_20c_noniid_lr1em2_a32_mlr1em4_r32_R30_seed42' on GPU 1
+[12:13:50] DONE 'fedora_cifar100_20c_noniid_lr1em2_a32_mlr1em3_r32_R30_seed42' [OK]
+[12:13:50] START 'fedora_cifar100_20c_noniid_lr1em2_a64_mlrsame_r32_R30_seed42' on GPU 0
+[12:40:08] DONE 'fedora_cifar100_20c_noniid_lr1em2_a32_mlr1em4_r32_R30_seed42' [OK]
+[12:40:08] START 'fedora_cifar100_20c_noniid_lr1em2_a64_mlr1em3_r32_R30_seed42' on GPU 1
+[13:42:41] DONE 'fedora_cifar100_20c_noniid_lr1em2_a64_mlrsame_r32_R30_seed42' [OK]
+[13:42:41] START 'fedora_cifar100_20c_noniid_lr1em2_a64_mlr1em4_r32_R30_seed42' on GPU 0
+[14:11:30] DONE 'fedora_cifar100_20c_noniid_lr1em2_a64_mlr1em3_r32_R30_seed42' [OK]
+[15:11:26] DONE 'fedora_cifar100_20c_noniid_lr1em2_a64_mlr1em4_r32_R30_seed42' [OK]
+[15:11:26] ALL DONE. Run --summarize to rank.

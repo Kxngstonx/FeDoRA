@@ -1,0 +1,10 @@
+============================================================
+PHASE 1: SVHN 20c — FeDoRA grid(72) + FedEx-mod(2) = 74 (베이스라인은 기존로그)
+============================================================
+[01:11:09] queue 37 (skip 37)
+[01:11:09] START fedora_svhn_20c_noniid_lr5em4_a16_mlr1em3_r32_R30_seed42 GPU1
+[01:11:09] START fedora_svhn_20c_noniid_lr5em4_a16_mlrsame_r32_R30_seed42 GPU0
+[04:40:45] DONE fedora_svhn_20c_noniid_lr5em4_a16_mlrsame_r32_R30_seed42 [OK]
+[04:40:45] START fedora_svhn_20c_noniid_lr5em4_a16_mlr1em4_r32_R30_seed42 GPU0
+[04:50:38] DONE fedora_svhn_20c_noniid_lr5em4_a16_mlr1em3_r32_R30_seed42 [OK]
+[04:50:38] START fedora_svhn_20c_noniid_lr5em4_a32_mlrsame_r32_R30_seed42 GPU1

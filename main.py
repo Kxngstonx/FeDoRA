@@ -94,6 +94,9 @@ def get_args():
     parser.add_argument('--flex_lora_svd_a', action='store_true', help='FlexLoRA SVD_A: extract common A_ref from stacked client A matrices using SVD, then compute B via Least Squares.')
     parser.add_argument('--fedex_lora', action='store_true', help='FedEx-LoRA: Residual Exact Aggregation applying directly to frozen W0.')
     parser.add_argument('--fedex_r_prime', type=int, default=0, help='Target rank r_prime for FedEx-LoRA Truncated SVD (0 means use LoRA r).')
+    parser.add_argument('--fedex_freeze_w0', action='store_true', help='Fair FedEx-LoRA: keep W0 frozen (skip the residual write-back to W0) so the base model stays at its pretrained value and only O(r) low-rank params are communicated, matching the other PEFT baselines.')
+    parser.add_argument('--fedex_lowrank_comm', action='store_true', help='Fair-communication FedEx-LoRA: instead of redistributing the dense W0 every round, keep W0 frozen and carry the accumulated residual as a rank-(fedex_res_rank) low-rank adapter (res_A, res_B). Per-round comm = O((r+res_rank)(d+k)), matching the other LoRA baselines budget.')
+    parser.add_argument('--fedex_res_rank', type=int, default=0, help='Rank of the low-rank residual adapter for --fedex_lowrank_comm (e.g. 16). Set lora_r + fedex_res_rank = baseline rank to equalize communication budget.')
     parser.add_argument('--ft_classifier', action='store_true', help='Full fine-tune the final classifier layer instead of applying LoRA/DoRA.')
     parser.add_argument('--trainable_A', action='store_true', help='Make lora_A trainable in LoRA/DoRA (non-FlexLoRA mode)')
     parser.add_argument('--ravan_heads', type=int, default=4, help='Number of RAVAN multi-head LoRA heads')
@@ -200,8 +203,9 @@ def main():
             _ft_classifier_global_skip = ['score']
         elif 'vit' in args.model:
             _ft_classifier_global_skip = ['classifier']
-    _peft_kwargs = dict(trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), global_skip_modules=_ft_classifier_global_skip, target_modules=getattr(args, 'target_modules', None), ravan_heads=getattr(args, 'ravan_heads', 4), ravan_init=getattr(args, 'ravan_init', 'gram_schmidt'))
+    _peft_kwargs = dict(trainable_A=(getattr(args, 'flex_lora', False) and not getattr(args, 'flex_lora_freeze_a', False)) or getattr(args, 'trainable_A', False), global_skip_modules=_ft_classifier_global_skip, target_modules=getattr(args, 'target_modules', None), ravan_heads=getattr(args, 'ravan_heads', 4), ravan_init=getattr(args, 'ravan_init', 'gram_schmidt'), fedex_res_rank=(getattr(args, 'fedex_res_rank', 0) if getattr(args, 'fedex_lowrank_comm', False) else 0))
     base_global_model = inject_peft(base_global_model, args.peft, args.lora_r, args.lora_alpha, getattr(args, 'lora_dropout', 0.0), **_peft_kwargs)
+    base_global_model.to(device)
 
     global_model = copy.deepcopy(base_global_model)
     local_model  = copy.deepcopy(base_global_model)
@@ -392,6 +396,7 @@ def main():
                     # Custom PEFT 파라미터는 별도 함수에서 처리하므로 FedAvg 누적에서 제외
                     is_custom_peft = getattr(args, 'flex_lora', False) or getattr(args, 'fedex_lora', False)
                     if is_custom_peft and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
+                    if getattr(args, 'fedex_lora', False) and (key.endswith('.res_A') or key.endswith('.res_B')): skip = True
                     if args.peft == 'ravan' and ('.ravan_H.' in key or '.ravan_s.' in key): skip = True
                     if not skip: global_w[key] = net_para[key] * weight
             else:
@@ -406,6 +411,7 @@ def main():
                     # Custom PEFT 파라미터는 별도 함수에서 처리하므로 FedAvg 누적에서 제외
                     is_custom_peft = getattr(args, 'flex_lora', False) or getattr(args, 'fedex_lora', False)
                     if is_custom_peft and (key.endswith('.lora_A') or key.endswith('.lora_B') or key.endswith('.m')): skip = True
+                    if getattr(args, 'fedex_lora', False) and (key.endswith('.res_A') or key.endswith('.res_B')): skip = True
                     if args.peft == 'ravan' and ('.ravan_H.' in key or '.ravan_s.' in key): skip = True
                     if not skip: global_w[key] += net_para[key] * weight
 
@@ -416,13 +422,15 @@ def main():
             from peft_utils import fedex_lora_aggregate
             updated_lora_params, fedex_logs = fedex_lora_aggregate(
                 updated_client_weights, fed_avg_freqs, global_model,
-                r_prime=args.fedex_r_prime if args.fedex_r_prime > 0 else None
+                r_prime=args.fedex_r_prime if args.fedex_r_prime > 0 else None,
+                freeze_w0=getattr(args, 'fedex_freeze_w0', False),
+                lowrank_comm=getattr(args, 'fedex_lowrank_comm', False),
+                res_rank=getattr(args, 'fedex_res_rank', 0) if getattr(args, 'fedex_res_rank', 0) > 0 else None
             )
             global_model.load_state_dict(updated_lora_params, strict=False)
             
-            # W0가 인플레이스로 업데이트되었으므로 global_w를 다시 동기화하여 다음 라운드 클라이언트들에게 전송되도록 함
-            for k, v in global_model.state_dict().items():
-                global_w[k] = v.clone()
+            # FedEx-LoRA는 서버에서만 W0에 누적하고, 클라이언트에게는 A_avg, B_avg만 보냄 (PEFT 통신 제약 유지)
+            # 따라서 global_w 동기화 코드를 삭제함.
                 
             for lname, lvals in fedex_logs.items():
                 logger.info(f'ROUND {round} FedEx-LoRA [{lname}] res_norm={lvals["res_norm"]:.6f}, rec_norm={lvals["rec_norm"]:.6f}, svd_r={lvals["svd_r"]}')

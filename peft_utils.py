@@ -15,7 +15,7 @@ class LoRALayer(nn.Module):
             self.lora_dropout = nn.Identity()
 
 class LoRALinear(LoRALayer):
-    def __init__(self, linear_layer: nn.Linear, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0, trainable_A: bool = False):
+    def __init__(self, linear_layer: nn.Linear, r: int = 8, lora_alpha: int = 16, lora_dropout: float = 0.0, trainable_A: bool = False, fedex_res_rank: int = 0):
         super().__init__(linear_layer.in_features, linear_layer.out_features, r, lora_alpha, lora_dropout)
 
         self.linear = linear_layer
@@ -29,10 +29,19 @@ class LoRALinear(LoRALayer):
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
         nn.init.zeros_(self.lora_B)
 
+        # FedEx-LoRA fair-communication: 누적 잔차를 dense W0 갱신 대신 rank-r' 저랭크 인자로 보관/통신.
+        # res_B @ res_A 가 (W0_accumulated - W0_pretrained) 역할을 한다. 0 이면 비활성(기존 LoRA와 동일).
+        self.fedex_res_rank = fedex_res_rank
+        if fedex_res_rank > 0:
+            self.res_A = nn.Parameter(self.linear.weight.new_zeros((fedex_res_rank, linear_layer.in_features)), requires_grad=False)
+            self.res_B = nn.Parameter(self.linear.weight.new_zeros((linear_layer.out_features, fedex_res_rank)), requires_grad=False)
+
     def forward(self, x: torch.Tensor):
         result = self.linear(x) # W0 * x
         x_dropped = self.lora_dropout(x)
         result += (x_dropped @ self.lora_A.T @ self.lora_B.T) * self.scaling # BA * x → W0x + BAx
+        if self.fedex_res_rank > 0:  # 저랭크 누적 잔차 항 (이미 weight 스케일이므로 별도 scaling 없음)
+            result += x_dropped @ self.res_A.T @ self.res_B.T
         return result
 
 class DoRALinear(LoRALayer):
@@ -148,7 +157,7 @@ class RAVANLinear(nn.Module):
             self.lora_dropout = nn.Identity()
 
         # --- Initialize B_i and A_i with orthogonal subspaces ---
-        if init_method == 'gram_schmidt':
+        if init_method == 'gram_schmidt' and (r * num_heads <= in_features) and (r * num_heads <= out_features):
             # B: Gram-Schmidt on concatenated columns
             B_concat = torch.randn(out_features, r * num_heads)
             Q_B, _ = torch.linalg.qr(B_concat)  # (out, r*h) orthonormal columns
@@ -156,10 +165,10 @@ class RAVANLinear(nn.Module):
             A_concat = torch.randn(r * num_heads, in_features)
             Q_A, _ = torch.linalg.qr(A_concat.T)  # (in, r*h)
             Q_A = Q_A.T  # (r*h, in) orthonormal rows
-        else:  # random_normal — columns/rows are approximately orthogonal in high dim
-            B_concat = torch.randn(out_features, r * num_heads)
+        else:  # random_normal — columns/rows are approximately orthogonal in high dim, but we must scale them so their norms are 1 like QR!
+            B_concat = torch.randn(out_features, r * num_heads) / math.sqrt(out_features)
             Q_B = B_concat
-            A_concat = torch.randn(r * num_heads, in_features)
+            A_concat = torch.randn(r * num_heads, in_features) / math.sqrt(in_features)
             Q_A = A_concat
 
         # Slice into per-head parameters (frozen)
@@ -190,7 +199,7 @@ class RAVANLinear(nn.Module):
         return result
 
 
-def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None, global_skip_modules=None, target_modules=None, ravan_heads=4, ravan_init='gram_schmidt'):
+def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, trainable_A=False, skip_modules=None, global_skip_modules=None, target_modules=None, ravan_heads=4, ravan_init='gram_schmidt', fedex_res_rank=0):
     if peft_type == "none":
         return model
 
@@ -206,7 +215,7 @@ def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, t
             continue
 
         if len(list(module.children())) > 0:
-            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules, target_modules=target_modules, ravan_heads=ravan_heads, ravan_init=ravan_init)
+            inject_peft(module, peft_type, r, lora_alpha, lora_dropout, trainable_A, global_skip_modules=global_skip_modules, target_modules=target_modules, ravan_heads=ravan_heads, ravan_init=ravan_init, fedex_res_rank=fedex_res_rank)
 
         # If target_modules is set, only inject into matching module names
         if target_modules is not None and name not in target_modules:
@@ -214,7 +223,7 @@ def inject_peft(model, peft_type="lora", r=8, lora_alpha=16, lora_dropout=0.0, t
 
         if isinstance(module, nn.Linear):
             if peft_type == "lora":
-                setattr(model, name, LoRALinear(module, r, lora_alpha, lora_dropout, trainable_A))
+                setattr(model, name, LoRALinear(module, r, lora_alpha, lora_dropout, trainable_A, fedex_res_rank=fedex_res_rank))
             elif peft_type == "dora":
                 setattr(model, name, DoRALinear(module, r, lora_alpha, lora_dropout, trainable_A))
             elif peft_type == "ravan":
@@ -528,7 +537,6 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
 
             # B_new 계산 (Least Squares)
             if is_conv:
-                # A_ref를 다시 원래 형태로 복원해야 함
                 A_new = A_ref.view(r, C_in_g, k1, k2)
                 m_new, B_new, l0, l1, ls_err, ls_err_relative = flex_lora_decompose_conv2d_svd_a(W_global, W0, A_ref, scaling)
             else:
@@ -570,13 +578,29 @@ def flex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, fre
     return updated_dora_params, lambda_logs
 
 
-def fedex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, r_prime=None):
+def fedex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, r_prime=None, freeze_w0=False,
+                         lowrank_comm=False, res_rank=None):
     """
     FedEx-LoRA 서버 집계 알고리즘
     1) B_global = mean(B_i), A_global = mean(A_i)
     2) Residual = mean(B_i A_i) - B_global A_global
     3) Residual을 SVD로 저랭크(r_prime) 근사 후 복원 (통신 오버헤드 최적화 모사)
     4) 동결된 W0에 복원된 Residual을 영구적으로 더함 (Exact Aggregation)
+
+    freeze_w0=True (Fair mode):
+      - 4)단계의 W0 영구 업데이트를 생략한다. 사전학습 가중치 W0가 모든 라운드에서
+        고정값으로 유지되므로, 다른 PEFT 베이스라인과 동일하게 (a) base model이
+        full-rank delta를 누적하지 않고 (b) 클라이언트로 W0가 재배포되지 않아
+        통신량이 O(r)로 동등해진다. 이 경우 B_avg/A_avg만 남으므로 FedIT와 등가다.
+
+    lowrank_comm=True (Fair-communication mode):
+      - W0(dense d×k)를 매 라운드 통째로 재배포하는 대신, 누적 잔차
+        (W0_accumulated - W0_pretrained) 를 rank-res_rank 저랭크 인자(res_B, res_A)
+        로 유지/통신한다. W0 자체는 사전학습값으로 동결(상수)되어 한 번만 보내면 되고,
+        라운드별 변경 통신량은 lora_B/A(rank r) + res_B/A(rank res_rank) = O((r+res_rank)·(d+k))
+        로 다른 LoRA 계열과 동일 예산에 맞출 수 있다(예: r=16, res_rank=16 → 합 32).
+        exact aggregation 의 잔차는 그대로 반영하되 매 라운드 rank-res_rank 로 절단된다.
+        (현재 linear 레이어 대상으로 구현; conv 는 미지원 → dense 경로로 폴백)
     """
     updated_lora_params = {}
     fedex_logs = {}
@@ -585,7 +609,7 @@ def fedex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, r_
         # FedEx-LoRA는 본질적으로 LoRA의 A, B 행렬을 타겟으로 함
         if not hasattr(module, 'lora_A') or not hasattr(module, 'lora_B'):
             continue
-        
+
         is_conv = isinstance(module, nn.Conv2d) or (hasattr(module, 'conv') and isinstance(module.conv, nn.Conv2d))
         W0 = module.conv.weight if is_conv else module.linear.weight
         r = module.r
@@ -623,6 +647,39 @@ def fedex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, r_
         # 잔차 행렬(Residual Matrix) 계산: 스케일링(alpha/r) 반영 필수!
         Delta_W_res = (BA_sum - BA_avg) * scaling
 
+        # ---------- Fair-communication 모드: 저랭크 누적 잔차로 통신 ----------
+        use_lowrank = lowrank_comm and (not is_conv) and hasattr(module, 'fedex_res_rank') and module.fedex_res_rank > 0
+        if use_lowrank:
+            rr = module.fedex_res_rank if res_rank is None else min(res_rank, module.fedex_res_rank)
+            # 이전까지 누적된 저랭크 잔차 복원 (W0 는 동결 상태이므로 res_B@res_A 가 누적분)
+            prev_acc = (module.res_B.data @ module.res_A.data).float()   # (out, in)
+            acc = prev_acc + Delta_W_res.float()                          # 이번 라운드 잔차 누적
+            curr_r = min(rr, min(acc.shape[0], acc.shape[1]))
+            U, S, Vh = torch.linalg.svd(acc, full_matrices=False)
+            res_B_new = (U[:, :curr_r] * S[:curr_r].unsqueeze(0)).to(W0.dtype)   # (out, curr_r)
+            res_A_new = Vh[:curr_r, :].to(W0.dtype)                              # (curr_r, in)
+            # 모듈의 res 파라미터는 고정 rank rr → 부족분은 0 패딩하여 shape 일치
+            if curr_r < rr:
+                pad_B = res_B_new.new_zeros((res_B_new.shape[0], rr - curr_r))
+                pad_A = res_A_new.new_zeros((rr - curr_r, res_A_new.shape[1]))
+                res_B_new = torch.cat([res_B_new, pad_B], dim=1)
+                res_A_new = torch.cat([res_A_new, pad_A], dim=0)
+            # W0 는 절대 건드리지 않음 (사전학습값 동결)
+            updated_lora_params[f"{layer_name}.lora_B"] = B_avg
+            updated_lora_params[f"{layer_name}.lora_A"] = A_avg
+            updated_lora_params[f"{layer_name}.res_B"] = res_B_new
+            updated_lora_params[f"{layer_name}.res_A"] = res_A_new
+            recon_err = (acc - res_B_new.float() @ res_A_new.float()).norm().item()
+            fedex_logs[layer_name] = {
+                'res_norm': Delta_W_res.norm().item(),
+                'rec_norm': (res_B_new.float() @ res_A_new.float()).norm().item(),
+                'svd_r': curr_r,
+                'acc_trunc_err': recon_err,
+                'acc_trunc_err_rel': recon_err / (acc.norm().item() + 1e-8),
+            }
+            continue
+        # ---------------------------------------------------------------------
+
         # 통신 오버헤드 최적화를 위한 Truncated SVD (Low-rank Approximation)
         M_res = Delta_W_res.view(W0.shape[0], -1).float()
         curr_r = min(actual_r_prime, min(M_res.shape[0], M_res.shape[1]))
@@ -639,12 +696,15 @@ def fedex_lora_aggregate(updated_client_weights, fed_avg_freqs, global_model, r_
             Delta_W_rec = M_rec
 
         # W0의 그래디언트 차단 및 in-place 영구 업데이트 (메모리 누수 방지)
-        with torch.no_grad():
-            W0.data.add_(Delta_W_rec)
+        # Fair mode(freeze_w0=True)에서는 W0를 사전학습값으로 동결하여 residual write-back을 생략.
+        if not freeze_w0:
+            with torch.no_grad():
+                W0.data.add_(Delta_W_rec)
 
         updated_lora_params[f"{layer_name}.lora_B"] = B_avg
         updated_lora_params[f"{layer_name}.lora_A"] = A_avg
-        fedex_logs[layer_name] = {'res_norm': Delta_W_res.norm().item(), 'rec_norm': Delta_W_rec.norm().item(), 'svd_r': curr_r}
+        rec_norm_logged = 0.0 if freeze_w0 else Delta_W_rec.norm().item()
+        fedex_logs[layer_name] = {'res_norm': Delta_W_res.norm().item(), 'rec_norm': rec_norm_logged, 'svd_r': curr_r}
 
     return updated_lora_params, fedex_logs
 

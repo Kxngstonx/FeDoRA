@@ -1,46 +1,70 @@
-import json
+import re
 
-results = {
-    'FeDoRA': {'cifar100_20c_noniid': (0.8113, True), 'cifar100_50c_noniid': (0.8098, True), 'cifar100_20c_iid': (0.832, True), 'cifar100_50c_iid': (0.8278, True), 'svhn_20c_noniid': (0.505, True), 'svhn_20c_iid': (0.552, True)},
-    'RAVAN': {'cifar100_50c_noniid': (0.6811, True), 'cifar100_20c_noniid': (0.7314, True), 'cifar100_20c_iid': (0.7826, True), 'cifar100_50c_iid': (0.7526, True), 'svhn_20c_iid': (0.4386, True), 'svhn_20c_noniid': (0.3425, True)},
-    'FFA-LoRA': {'cifar100_50c_noniid': (0.8056, True), 'cifar100_50c_iid': (0.8244, True), 'cifar100_20c_noniid': (0.8141, True), 'cifar100_20c_iid': (0.8311, True), 'svhn_50c_iid': (0.4898, False), 'svhn_20c_iid': (0.552, True), 'svhn_20c_noniid': (0.505, True)},
-    'FedEx-LoRA': {'cifar100_50c_iid': (0.8244, True), 'cifar100_20c_noniid': (0.8141, True), 'cifar100_20c_iid': (0.8311, True), 'cifar100_50c_noniid': (0.8056, True), 'svhn_20c_noniid': (0.505, True), 'svhn_50c_iid': (0.5464, True), 'svhn_20c_iid': (0.552, True)},
-    'FlexLoRA': {'cifar100_20c_noniid': (0.8113, True), 'cifar100_50c_iid': (0.8278, True), 'cifar100_20c_iid': (0.832, True), 'cifar100_50c_noniid': (0.8098, True), 'svhn_20c_iid': (0.552, True), 'svhn_20c_noniid': (0.505, True)},
-    'FedIT': {'cifar100_50c_iid': (0.8278, True), 'cifar100_20c_iid': (0.832, True), 'cifar100_50c_noniid': (0.8098, True), 'cifar100_20c_noniid': (0.8113, True), 'svhn_20c_noniid': (0.505, True), 'svhn_50c_iid': (0.5464, True), 'svhn_20c_iid': (0.552, True)}
-}
+with open('final_performance_table_ema03_with_superglue.md', 'r') as f:
+    content = f.read()
 
-methods_order = ['FeDoRA', 'FedEx-LoRA', 'FedIT', 'FlexLoRA', 'FFA-LoRA', 'RAVAN']
-method_names = {
-    'FeDoRA': '**🌟 Ours (FeDoRA)**',
-    'FedEx-LoRA': 'FedEx-LoRA',
-    'FedIT': 'FedIT',
-    'FlexLoRA': 'FlexLoRA',
-    'FFA-LoRA': 'FFA-LoRA',
-    'RAVAN': 'RAVAN'
-}
+# Replace the emoji and bold asterisks
+content = content.replace('**🌟 Ours (FeDoRA)**', 'Ours (FeDoRA)')
+# In case there's spaces left weirdly
+content = content.replace('🌟 Ours (FeDoRA)', 'Ours (FeDoRA)')
 
-cols = [
-    ('cifar100', 'iid'),
-    ('cifar100', 'noniid'),
-    ('svhn', 'iid'),
-    ('svhn', 'noniid')
-]
+lines = content.split('\n')
 
-for clients in ['20c', '50c']:
-    print(f"### {clients.replace('c', '')} Clients Setting")
-    print(f"| Method                    | CIFAR-100 (IID) | CIFAR-100 (Non-IID) | SVHN (IID) | SVHN (Non-IID) |")
-    print(f"|---------------------------|-----------------|---------------------|------------|----------------|")
-    for method in methods_order:
-        row = []
-        for ds, part in cols:
-            key = f"{ds}_{clients}_{part}"
-            if key in results[method]:
-                acc, finished = results[method][key]
-                acc_str = f"{acc:.4f}"
-                if not finished:
-                    acc_str = f"*{acc_str}*"
-                row.append(acc_str)
+new_lines = []
+table_lines = []
+in_table = False
+
+def format_table(t_lines):
+    rows = []
+    for line in t_lines:
+        parts = line.strip().split('|')
+        if len(parts) > 2:
+            # handle cases where there might be escaped pipes, but here we assume simple tables
+            rows.append([p.strip() for p in parts[1:-1]])
+    
+    if not rows: return t_lines
+    num_cols = len(rows[0])
+    max_widths = [0] * num_cols
+    for row in rows:
+        for i, col in enumerate(row):
+            if i < num_cols:
+                if set(col.replace(':', '')) == {'-'}:
+                    # min width of 3 for dashes
+                    max_widths[i] = max(max_widths[i], 3)
+                else:
+                    max_widths[i] = max(max_widths[i], len(col))
+                    
+    formatted = []
+    for r_idx, row in enumerate(rows):
+        formatted_row = "|"
+        for i, col in enumerate(row):
+            if i >= num_cols: break
+            width = max_widths[i]
+            if r_idx == 1 and set(col.replace(':', '')) == {'-'}:
+                formatted_row += "-" * (width + 2) + "|"
             else:
-                row.append("-")
-        print(f"| {method_names[method]:<25} | {row[0]:>15} | {row[1]:>19} | {row[2]:>10} | {row[3]:>14} |")
-    print()
+                if i == 0:
+                    formatted_row += f" {col.ljust(width)} |"
+                else:
+                    formatted_row += f" {col.center(width)} |"
+        formatted.append(formatted_row)
+    return formatted
+
+for line in lines:
+    if line.strip().startswith('|') and line.strip().endswith('|'):
+        in_table = True
+        table_lines.append(line)
+    else:
+        if in_table:
+            # Format and append
+            new_lines.extend(format_table(table_lines))
+            table_lines = []
+            in_table = False
+        new_lines.append(line)
+
+if in_table:
+    new_lines.extend(format_table(table_lines))
+
+with open('final_performance_table_ema03_with_superglue.md', 'w') as f:
+    f.write('\n'.join(new_lines))
+
